@@ -1,13 +1,21 @@
 name: CI
-on: [push]
+on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: supabase/postgres:15
+        ports: [5432:5432]
+        env:
+          POSTGRES_PASSWORD: supa
     steps:
-      - uses: actions/checkout@v3
-      - name: Install dependencies
-        run: echo "installing"
-      - name: Run lint
-        run: echo "lint"
-      - name: Run tests
-        run: echo "tests"
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with: { version: 8 }
+      - run: pnpm install
+      - name: Apply migrations
+        run: |
+          supabase db push --db-url "postgres://postgres:supa@localhost:5432/postgres"
+      - run: pnpm lint
+      - run: pnpm test --if-present
