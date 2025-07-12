@@ -1,0 +1,13 @@
+name: CI
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install dependencies
+        run: echo "installing"
+      - name: Run lint
+        run: echo "lint"
+      - name: Run tests
+        run: echo "tests"
