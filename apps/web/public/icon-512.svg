@@ -1,0 +1,10 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="86" fill="#2563eb"/>
+  <path d="M128 384V128H384V160H160V384H128Z" fill="white"/>
+  <path d="M192 352V192H352V224H224V352H192Z" fill="white"/>
+  <path d="M256 320V256H320V288H288V320H256Z" fill="white"/>
+  <circle cx="384" cy="128" r="21" fill="#fbbf24"/>
+  <circle cx="352" cy="192" r="16" fill="#fbbf24"/>
+  <circle cx="320" cy="256" r="11" fill="#fbbf24"/>
+  <text x="256" y="450" font-family="Arial, sans-serif" font-size="48" font-weight="bold" text-anchor="middle" fill="white">EGE</text>
+</svg>
