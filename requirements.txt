@@ -1,2 +1,6 @@
 psycopg2-binary
 weasyprint
+openai
+tiktoken
+markdown
+beautifulsoup4
