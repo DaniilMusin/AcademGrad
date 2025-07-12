@@ -1,11 +1,76 @@
-name: Cron
+name: Cron Jobs
 on:
   schedule:
+    # Badge cron - runs every 6 hours
+    - cron: '0 */6 * * *'
+    # Spaced repetition - runs daily at 3 AM
     - cron: '0 3 * * *'
+    # Weekly report - runs on Sundays at 6 AM
+    - cron: '0 6 * * 0'
+
 jobs:
-  cron:
+  badge-cron:
     runs-on: ubuntu-latest
+    if: github.event.schedule == '0 */6 * * *'
     steps:
-      - uses: actions/checkout@v3
-      - name: Run cron script
-        run: echo "cron"
+      - uses: actions/checkout@v4
+      
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      
+      - name: Run badge cron
+        run: |
+          supabase functions invoke badge-cron \
+            --env-file .env.local \
+            --no-verify-jwt
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+  spaced-repetition:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 3 * * *'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+      
+      - name: Run spaced repetition
+        run: python scripts/spaced_repetition.py
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+  weekly-report:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 6 * * 0'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      
+      - name: Generate weekly reports
+        run: |
+          supabase functions invoke weekly-report \
+            --env-file .env.local \
+            --no-verify-jwt
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      
+      - name: Generate PDFs
+        run: |
+          pip install -r scripts/requirements.txt
+          python scripts/generate_pdf.py
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}

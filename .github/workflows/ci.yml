@@ -1,7 +1,38 @@
 name: CI
 on: [push, pull_request]
+
 jobs:
-  build:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./apps/web
+      
+      - name: Run linter
+        run: npm run lint
+        working-directory: ./apps/web
+      
+      - name: Run tests
+        run: npm run test --if-present
+        working-directory: ./apps/web
+      
+      - name: Build application
+        run: npm run build
+        working-directory: ./apps/web
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+  database-migration:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -9,13 +40,45 @@ jobs:
         ports: [5432:5432]
         env:
           POSTGRES_PASSWORD: supa
+          POSTGRES_DB: postgres
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v3
-        with: { version: 8 }
-      - run: pnpm install
+      
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      
+      - name: Start Supabase
+        run: supabase start --db-url postgres://postgres:supa@localhost:5432/postgres
+      
       - name: Apply migrations
+        run: supabase db push --db-url postgres://postgres:supa@localhost:5432/postgres
+      
+      - name: Run tests against database
+        run: supabase test db --db-url postgres://postgres:supa@localhost:5432/postgres
+
+  python-scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install Python dependencies
+        run: pip install -r scripts/requirements.txt
+      
+      - name: Run Python linter
         run: |
-          supabase db push --db-url "postgres://postgres:supa@localhost:5432/postgres"
-      - run: pnpm lint
-      - run: pnpm test --if-present
+          pip install flake8
+          flake8 scripts/ --max-line-length=88 --ignore=E501,W503
+      
+      - name: Test Python scripts (dry run)
+        run: |
+          python -m py_compile scripts/import_tasks.py
+          python -m py_compile scripts/embed_chunks.py
+          python -m py_compile scripts/spaced_repetition.py
+          python -m py_compile scripts/generate_pdf.py

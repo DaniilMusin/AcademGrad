@@ -1,19 +1,304 @@
-### Быстрый старт
+# 🎯 EGE AI Learning Platform
 
-```bash
-git clone https://github.com/you/ege-ai-platform.git
-cd ege-ai-platform
-pnpm install
-supabase start            # локальный Postgres + Studio
-supabase db reset         # применит миграции
-python scripts/embed_chunks.py
-pnpm --filter @apps/web dev
+Интеллектуальная платформа для подготовки к ЕГЭ и ОГЭ с AI-чатом, spaced repetition и аналитикой.
+
+## ✨ Функции
+
+- 🤖 **AI-чат** с RAG для помощи в решении задач
+- 📊 **Аналитика** слабых мест и прогресса
+- 🎯 **Spaced repetition** для эффективного повторения
+- 🏆 **Система бейджей** и мотивации
+- 📱 **PWA** с оффлайн-режимом
+- 🤖 **Telegram бот** для уведомлений
+- 📄 **PDF отчеты** о прогрессе
+- 💳 **Stripe** для подписок
+
+## 🚀 Быстрый старт
+
+### Предварительные требования
+
+- Node.js 18+
+- Python 3.11+
+- Supabase CLI
+- Docker (для локальной разработки)
+
+### Локальная разработка
+
+1. **Клонирование и установка**
+   ```bash
+   git clone https://github.com/your-username/ege-ai-platform.git
+   cd ege-ai-platform
+   npm install
+   cd apps/web && npm install && cd ../..
+   ```
+
+2. **Настройка переменных окружения**
+   ```bash
+   cp .env.example .env.local
+   # Отредактируйте .env.local с вашими ключами
+   ```
+
+3. **Запуск Supabase**
+   ```bash
+   supabase start
+   supabase db reset
+   ```
+
+4. **Импорт задач и создание эмбеддингов**
+   ```bash
+   # Создайте папку tasks с markdown файлами
+   mkdir tasks
+   # Добавьте файлы задач в формате: тема_подтема_сложность.md
+   
+   # Установите зависимости Python
+   pip install -r scripts/requirements.txt
+   
+   # Импорт задач
+   python scripts/import_tasks.py
+   
+   # Создание эмбеддингов
+   python scripts/embed_chunks.py
+   ```
+
+5. **Запуск приложения**
+   ```bash
+   cd apps/web
+   npm run dev
+   ```
+
+   Откройте [http://localhost:3000](http://localhost:3000)
+
+## 📁 Структура проекта
+
+```
+├── apps/
+│   └── web/                 # Next.js приложение
+├── supabase/
+│   ├── migrations/          # SQL миграции
+│   ├── edge-functions/      # Serverless функции
+│   └── seed/               # Начальные данные
+├── scripts/                # Python скрипты
+│   ├── import_tasks.py     # Импорт задач из Markdown
+│   ├── embed_chunks.py     # Создание эмбеддингов
+│   ├── spaced_repetition.py # Планирование повторений
+│   └── generate_pdf.py     # Генерация PDF отчетов
+├── .github/workflows/      # GitHub Actions
+└── docker/                 # Docker конфигурация
 ```
 
-Открыть: [http://localhost:3000/tasks/1](http://localhost:3000/tasks/1)
+## 🗄️ База данных
 
-### Deploy (Vercel)
+### Миграции
 
-1. `vercel link`
-2. `vercel env pull`
-3. Set build command: `pnpm --filter @apps/web build`
+```bash
+# Применить миграции
+supabase db push
+
+# Создать новую миграцию
+supabase db diff -f new_feature
+
+# Сбросить локальную БД
+supabase db reset
+```
+
+### Основные таблицы
+
+- `tasks` - задачи ЕГЭ/ОГЭ
+- `task_chunks` - части решений с эмбеддингами
+- `attempts` - попытки решения пользователей
+- `events` - события для аналитики
+- `recommendations` - рекомендации для повторения
+- `badges` / `user_badges` - система достижений
+- `lesson_reports` - недельные отчеты
+
+## 🔧 Edge Functions
+
+### Локальная разработка
+
+```bash
+# Запуск всех функций
+supabase functions serve
+
+# Запуск конкретной функции
+supabase functions serve chat-task
+```
+
+### Тестирование
+
+```bash
+# Тест чата
+curl -X POST http://localhost:54321/functions/v1/chat-task \
+  -H "Content-Type: application/json" \
+  -d '{"task_id": 1, "question": "Как решить эту задачу?"}'
+
+# Тест логирования попыток
+curl -X POST http://localhost:54321/functions/v1/log-attempt \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{"task_id": 1, "answer_submitted": "42", "is_correct": true}'
+```
+
+## 📱 PWA
+
+Приложение поддерживает:
+- Установку как PWA
+- Оффлайн-режим
+- Push-уведомления
+- Кеширование задач
+
+## 🤖 Telegram Bot
+
+1. Создайте бота через [@BotFather](https://t.me/BotFather)
+2. Добавьте токен в переменные окружения
+3. Настройте webhook:
+   ```bash
+   curl -X POST https://api.telegram.org/bot<YOUR_TOKEN>/setWebhook \
+     -H "Content-Type: application/json" \
+     -d '{"url": "https://your-project.supabase.co/functions/v1/tg-bot"}'
+   ```
+
+## 💳 Stripe Integration
+
+1. Создайте аккаунт в [Stripe](https://stripe.com)
+2. Добавьте ключи в переменные окружения
+3. Настройте webhook endpoint:
+   ```
+   https://your-project.supabase.co/functions/v1/payment
+   ```
+
+## 🚀 Deploy
+
+### Vercel (Frontend)
+
+1. **Подключите GitHub репозиторий**
+2. **Настройте переменные окружения**
+3. **Настройте build command:**
+   ```bash
+   cd apps/web && npm run build
+   ```
+
+### Supabase (Backend)
+
+1. **Создайте проект** в [Supabase](https://supabase.com)
+2. **Примените миграции:**
+   ```bash
+   supabase db push --project-ref YOUR_PROJECT_REF
+   ```
+3. **Деплой Edge Functions:**
+   ```bash
+   supabase functions deploy --project-ref YOUR_PROJECT_REF
+   ```
+
+## 📊 Мониторинг
+
+### Sentry
+
+Добавьте в `apps/web/pages/_app.tsx`:
+```javascript
+import * as Sentry from "@sentry/nextjs";
+
+Sentry.init({
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+});
+```
+
+### Логи
+
+```bash
+# Просмотр логов Edge Functions
+supabase functions logs chat-task
+
+# Просмотр логов БД
+supabase logs --type database
+```
+
+## 🔄 Автоматизация
+
+### GitHub Actions
+
+- **CI/CD:** линтинг, тесты, деплой
+- **Cron jobs:** обновление эмбеддингов, вручение бейджей, генерация отчетов
+
+### Локальные cron-задачи
+
+```bash
+# Обновление рекомендаций
+python scripts/spaced_repetition.py
+
+# Генерация отчетов
+python scripts/generate_pdf.py
+```
+
+## 🧪 Тестирование
+
+### Frontend тесты
+
+```bash
+cd apps/web
+npm run test
+```
+
+### Backend тесты
+
+```bash
+# Тесты БД
+supabase test db
+
+# Тесты Edge Functions
+supabase functions test
+```
+
+## 📚 Документация API
+
+### Edge Functions
+
+- `POST /functions/v1/chat-task` - AI чат
+- `POST /functions/v1/log-attempt` - логирование попыток
+- `POST /functions/v1/payment` - обработка платежей
+- `POST /functions/v1/tg-bot` - Telegram webhook
+
+### Database Functions
+
+- `match_task_chunks(query_embedding, match_count, taskid)` - поиск похожих chunks
+
+## 🤝 Разработка
+
+### Добавление новых задач
+
+1. Создайте markdown файл в папке `tasks/`
+2. Формат: `тема_подтема_сложность.md`
+3. Структура файла:
+   ```markdown
+   # Условие
+   Текст задачи...
+   
+   # Ответ
+   Правильный ответ
+   
+   # Решение
+   Подробное решение...
+   ```
+4. Запустите импорт: `python scripts/import_tasks.py`
+
+### Добавление новых фич
+
+1. Создайте ветку: `git checkout -b feature/new-feature`
+2. Внесите изменения
+3. Добавьте тесты
+4. Создайте PR
+
+## 📄 Лицензия
+
+MIT License - см. файл [LICENSE](LICENSE)
+
+## 🆘 Поддержка
+
+- Создайте [Issue](https://github.com/your-username/ege-ai-platform/issues)
+- Напишите в [Discussions](https://github.com/your-username/ege-ai-platform/discussions)
+
+## 🙏 Благодарности
+
+- [Supabase](https://supabase.com) - backend-as-a-service
+- [OpenAI](https://openai.com) - AI модели
+- [Vercel](https://vercel.com) - хостинг
+- [Stripe](https://stripe.com) - платежи
