@@ -1,0 +1,5 @@
+openai
+beautifulsoup4
+markdown
+tiktoken
+psycopg2-binary
