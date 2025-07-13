@@ -1,10 +1,123 @@
-name: Preview
+name: Vercel Preview Deployment
 on:
   pull_request:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - 'package.json'
+      - 'vercel.json'
+
 jobs:
   preview:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Preview deploy
-        run: echo "preview"
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: apps/web/package-lock.json
+      
+      - name: Install dependencies
+        run: |
+          cd apps/web
+          npm ci
+      
+      - name: Build project
+        run: |
+          cd apps/web
+          npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      
+      - name: Deploy to Vercel
+        id: vercel-deploy
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: apps/web
+          scope: ${{ secrets.VERCEL_ORG_ID }}
+      
+      - name: Comment PR with preview link
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && comment.body.includes('🚀 Preview deployed!')
+            );
+            
+            const previewUrl = '${{ steps.vercel-deploy.outputs.preview-url }}';
+            const commitSha = context.sha.substring(0, 7);
+            
+            const commentBody = `
+            ## 🚀 Preview deployed!
+            
+            **Preview URL**: ${previewUrl}
+            **Commit**: ${commitSha}
+            **Branch**: ${context.ref.replace('refs/heads/', '')}
+            
+            ### Changes in this PR:
+            - Frontend updates
+            - UI/UX improvements
+            - Component changes
+            
+            📝 **Note**: This preview uses production data. Please test carefully.
+            
+            ---
+            *Preview will be automatically updated on each commit to this PR*
+            `;
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: commentBody
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: commentBody
+              });
+            }
+      
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v10
+        if: success()
+        with:
+          urls: |
+            ${{ steps.vercel-deploy.outputs.preview-url }}
+            ${{ steps.vercel-deploy.outputs.preview-url }}/dashboard
+            ${{ steps.vercel-deploy.outputs.preview-url }}/schedule
+          configPath: '.lighthouserc.json'
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+      
+      - name: Report deployment success
+        if: success()
+        run: |
+          echo "✅ Preview deployment successful!"
+          echo "🔗 Preview URL: ${{ steps.vercel-deploy.outputs.preview-url }}"
+          echo "📊 Lighthouse report generated"
+      
+      - name: Report deployment failure
+        if: failure()
+        run: |
+          echo "❌ Preview deployment failed!"
+          echo "Please check the logs above for details"
