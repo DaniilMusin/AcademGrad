@@ -7,11 +7,12 @@ on:
     - cron: '0 3 * * *'
     # Weekly report - runs on Sundays at 6 AM
     - cron: '0 6 * * 0'
+  workflow_dispatch: # Allow manual trigger
 
 jobs:
   badge-cron:
     runs-on: ubuntu-latest
-    if: github.event.schedule == '0 */6 * * *'
+    if: github.event.schedule == '0 */6 * * *' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
       
@@ -23,15 +24,16 @@ jobs:
       - name: Run badge cron
         run: |
           supabase functions invoke badge-cron \
-            --env-file .env.local \
+            --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} \
             --no-verify-jwt
         env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
   spaced-repetition:
     runs-on: ubuntu-latest
-    if: github.event.schedule == '0 3 * * *'
+    if: github.event.schedule == '0 3 * * *' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
       
@@ -41,16 +43,20 @@ jobs:
           python-version: '3.11'
       
       - name: Install dependencies
-        run: pip install -r scripts/requirements.txt
+        run: |
+          pip install --upgrade pip
+          pip install -r scripts/requirements.txt
       
       - name: Run spaced repetition
         run: python scripts/spaced_repetition.py
         env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
   weekly-report:
     runs-on: ubuntu-latest
-    if: github.event.schedule == '0 6 * * 0'
+    if: github.event.schedule == '0 6 * * 0' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
       
@@ -59,18 +65,71 @@ jobs:
         with:
           version: latest
       
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r scripts/requirements.txt
+      
       - name: Generate weekly reports
         run: |
           supabase functions invoke weekly-report \
-            --env-file .env.local \
+            --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} \
             --no-verify-jwt
         env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       
       - name: Generate PDFs
-        run: |
-          pip install -r scripts/requirements.txt
-          python scripts/generate_pdf.py
+        run: python scripts/generate_pdf.py
         env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+  # Cleanup job to remove old data
+  cleanup:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 6 * * 0' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install supabase python-dotenv
+      
+      - name: Cleanup old data
+        run: |
+          python -c "
+          import os
+          from supabase import create_client
+          from datetime import datetime, timedelta
+          
+          supabase = create_client(
+              os.environ['SUPABASE_URL'],
+              os.environ['SUPABASE_SERVICE_ROLE_KEY']
+          )
+          
+          # Delete old events (older than 90 days)
+          cutoff_date = (datetime.now() - timedelta(days=90)).isoformat()
+          result = supabase.table('events').delete().lt('ts', cutoff_date).execute()
+          print(f'Deleted {len(result.data) if result.data else 0} old events')
+          
+          # Refresh materialized views
+          supabase.rpc('refresh_weak_topics').execute()
+          print('Refreshed materialized views')
+          "
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
