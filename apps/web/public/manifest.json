@@ -1,12 +1,47 @@
 {
-  "name": "EGE AI Tutor",
-  "short_name": "EGE Tutor",
+  "name": "AcademGrad - ЕГЭ Тьютор",
+  "short_name": "AcademGrad",
+  "description": "Intelligent tutor for EGE exam preparation with AI-powered task recommendations",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#ffffff",
   "theme_color": "#2563eb",
+  "categories": ["education", "productivity"],
+  "lang": "ru",
+  "scope": "/",
   "icons": [
-    { "src": "/icon-192.svg", "sizes": "192x192", "type": "image/svg+xml" },
-    { "src": "/icon-512.svg", "sizes": "512x512", "type": "image/svg+xml" }
-  ]
+    { 
+      "src": "/icon-192.svg", 
+      "sizes": "192x192", 
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    { 
+      "src": "/icon-512.svg", 
+      "sizes": "512x512", 
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Решать задачи",
+      "short_name": "Задачи",
+      "description": "Перейти к решению задач",
+      "url": "/tasks",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Календарь",
+      "short_name": "Календарь",
+      "description": "Открыть календарь занятий",
+      "url": "/schedule",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+    }
+  ],
+  "prefer_related_applications": false,
+  "edge_side_panel": {
+    "preferred_width": 400
+  }
 }

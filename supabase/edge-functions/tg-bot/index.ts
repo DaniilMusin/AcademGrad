@@ -119,13 +119,13 @@ async function handleInlineQuery(inlineQuery: any) {
         results = tasks.map((task: any, index: number) => ({
           type: "article",
           id: `task_${task.id}`,
-          title: `📝 ${task.topic}`,
-          description: `Сложность: ${task.difficulty}/10 • ${task.content.substring(0, 80)}...`,
+          title: `${getEmojiByTopic(task.topic)} ${task.topic}`,
+          description: `Сложность: ${'⭐'.repeat(task.difficulty)} | ${task.content.substring(0, 100)}...`,
           input_message_content: {
-            message_text: `📝 *Задача: ${task.topic}*\n\n${task.content}\n\n🎯 Сложность: ${task.difficulty}/10\n\n💡 Решите эту задачу в AcademGrad!`,
-            parse_mode: "Markdown"
+            message_text: `📚 Задача: ${task.topic}\n\n${task.content}\n\n🎯 Сложность: ${'⭐'.repeat(task.difficulty)}\n\n👆 Нажмите на задачу чтобы начать решение`,
+            parse_mode: "HTML"
           },
-          thumb_url: `https://via.placeholder.com/64x64/${getColorByDifficulty(task.difficulty)}/white?text=${task.difficulty}`
+          thumb_url: `https://via.placeholder.com/64x64/${getColorByDifficulty(task.difficulty)}/white?text=${getEmojiByTopic(task.topic)}`
         }));
       } else {
         results = [{
