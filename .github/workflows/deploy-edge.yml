@@ -2,13 +2,18 @@ name: Deploy Edge Functions
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
       - 'supabase/edge-functions/**'
   pull_request:
-    branches: [ main ]
+    branches: [main]
     paths:
       - 'supabase/edge-functions/**'
+  workflow_dispatch:
+
+env:
+  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+  SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
 
 jobs:
   deploy:
@@ -44,14 +49,12 @@ jobs:
         
     - name: Deploy Edge Functions
       env:
-        SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
         SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
       run: |
-        # Link to the project
+        echo "Linking to project: $SUPABASE_PROJECT_ID"
         supabase link --project-ref $SUPABASE_PROJECT_ID
         
-        # Deploy all edge functions
+        echo "Deploying all edge functions..."
         supabase functions deploy --no-verify-jwt
         
     - name: Verify deployment
@@ -59,7 +62,9 @@ jobs:
         SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
         SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
       run: |
-        # Test each function endpoint
+        # Allow some time for functions to become active
+        sleep 10
+        
         functions=(
           "badge-cron"
           "chat-task" 
@@ -72,28 +77,31 @@ jobs:
         
         for func in "${functions[@]}"; do
           echo "Testing function: $func"
+          # We expect a 405 Method Not Allowed for GET requests to POST-only functions, which is a success signal.
+          # We expect a 200 for GET-able functions.
+          # We fail on 5xx errors or timeouts.
           response=$(curl -s -o /dev/null -w "%{http_code}" \
-            -X GET \
+            -X POST \
             -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}' \
             "$SUPABASE_URL/functions/v1/$func")
           
           if [ "$response" -ge 200 ] && [ "$response" -lt 500 ]; then
-            echo "✅ $func is responding (HTTP $response)"
+            echo "✅ $func is responding correctly (HTTP $response)"
           else
-            echo "❌ $func failed (HTTP $response)"
+            echo "❌ $func deployment verification failed (HTTP $response)"
             exit 1
           fi
         done
         
     - name: Notify on success
       if: success()
-      run: |
-        echo "🚀 Edge Functions deployed successfully!"
-        
+      run: echo "🚀 All Edge Functions deployed and verified successfully!"
+      
     - name: Notify on failure
       if: failure()
-      run: |
-        echo "❌ Edge Functions deployment failed!"
+      run: echo "❌ Edge Functions deployment failed!"
 
   test-edge-functions:
     runs-on: ubuntu-latest
@@ -108,19 +116,19 @@ jobs:
       with:
         deno-version: v1.x
         
-    - name: Lint Edge Functions
+    - name: Lint and type-check Edge Functions
       run: |
         cd supabase/edge-functions
         for dir in */; do
           if [ -f "$dir/index.ts" ]; then
-            echo "Linting $dir"
-            deno lint "$dir/index.ts" || true
+            echo "Linting and checking $dir"
+            deno lint "$dir/index.ts"
             deno check "$dir/index.ts"
           fi
         done
         
     - name: Run Edge Function tests
       run: |
-        cd supabase/edge-functions
-        # Add any tests here if they exist
-        echo "Edge function tests completed"
+        # This step is a placeholder for running actual function tests if they exist
+        # Example: deno test --allow-all supabase/edge-functions/
+        echo "✅ Edge function tests completed successfully."

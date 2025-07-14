@@ -22,13 +22,10 @@ serve(async (req) => {
 
     for (const user of users.users) {
       const report = await generateUserReport(supabase, user.id, weekStart, weekEnd);
-      if (report) {
+      if (report && user.email) {
+        // Generate PDF and send via email
+        await sendReportEmail(user.email, report);
         reports.push(report);
-        
-        // Send email report via Postmark
-        if (user.email) {
-          await sendWeeklyReportEmail(user.email, user.user_metadata?.full_name || 'User', report);
-        }
       }
     }
 
@@ -59,71 +56,94 @@ async function generateUserReport(supabase: any, userId: string, weekStart: Date
         )
       `)
       .eq("user_id", userId)
-      .gte("ts", weekStart.toISOString())
-      .lte("ts", weekEnd.toISOString());
+      .gte("created_at", weekStart.toISOString())
+      .lte("created_at", weekEnd.toISOString());
 
     if (!attempts?.length) {
-      return null;
+      return null; // No activity this week
     }
 
-    // Calculate stats
-    const tasksSolved = attempts.length;
+    // Calculate statistics
     const correctAttempts = attempts.filter(a => a.is_correct).length;
-    const accuracy = correctAttempts / tasksSolved;
-    
-    // Get topics covered
-    const topicsSet = new Set(attempts.map(a => a.tasks.topic));
-    const topicsCovered = Array.from(topicsSet);
-    
-    // Get weak topics (< 50% accuracy)
-    const topicStats = {};
-    attempts.forEach(a => {
-      const topic = a.tasks.topic;
-      if (!topicStats[topic]) {
-        topicStats[topic] = { correct: 0, total: 0 };
-      }
-      topicStats[topic].total++;
-      if (a.is_correct) {
-        topicStats[topic].correct++;
-      }
-    });
+    const totalAttempts = attempts.length;
+    const accuracy = (correctAttempts / totalAttempts) * 100;
+    const totalTimeSpent = attempts.reduce((sum, a) => sum + (a.time_spent_s || 0), 0);
+    const avgDifficulty = attempts.reduce((sum, a) => sum + (a.tasks?.difficulty || 0), 0) / totalAttempts;
 
-    const weakTopics = Object.entries(topicStats)
-      .filter(([_, stats]: [string, any]) => stats.correct / stats.total < 0.5)
-      .map(([topic]) => topic);
-
-    // Save report to database
-    const { data: report } = await supabase
-      .from("lesson_reports")
-      .insert({
-        user_id: userId,
-        week_start: weekStart.toISOString().split('T')[0],
-        week_end: weekEnd.toISOString().split('T')[0],
-        tasks_solved: tasksSolved,
-        accuracy,
-        topics_covered: topicsCovered,
-        weak_topics: weakTopics
-      })
-      .select()
+    // Get user profile
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", userId)
       .single();
+
+    const report = {
+      userId,
+      userName: profile?.full_name || "Пользователь",
+      weekStart: weekStart.toISOString(),
+      weekEnd: weekEnd.toISOString(),
+      totalAttempts,
+      correctAttempts,
+      accuracy: Math.round(accuracy),
+      totalTimeSpent: Math.round(totalTimeSpent / 60), // minutes
+      avgDifficulty: Math.round(avgDifficulty * 10) / 10,
+      topicStats: getTopicStats(attempts),
+    };
 
     return report;
   } catch (error) {
-    console.error("Error generating report for user:", userId, error);
+    console.error(`Error generating report for user ${userId}:`, error);
     return null;
   }
 }
 
-async function sendWeeklyReportEmail(email: string, userName: string, report: any) {
+function getTopicStats(attempts: any[]) {
+  const topicMap = new Map();
+  
+  attempts.forEach(attempt => {
+    const topic = attempt.tasks?.topic || "Неизвестная тема";
+    if (!topicMap.has(topic)) {
+      topicMap.set(topic, { total: 0, correct: 0 });
+    }
+    const stats = topicMap.get(topic);
+    stats.total++;
+    if (attempt.is_correct) {
+      stats.correct++;
+    }
+  });
+
+  return Array.from(topicMap.entries()).map(([topic, stats]) => ({
+    topic,
+    total: stats.total,
+    correct: stats.correct,
+    accuracy: Math.round((stats.correct / stats.total) * 100),
+  }));
+}
+
+async function sendReportEmail(email: string, report: any) {
   try {
-    const postmarkToken = Deno.env.get("POSTMARK_SERVER_TOKEN");
-    
+    const postmarkToken = Deno.env.get("POSTMARK_API_TOKEN");
     if (!postmarkToken) {
-      console.warn("POSTMARK_SERVER_TOKEN not configured, skipping email");
-      return;
+        console.warn("POSTMARK_API_TOKEN is not set. Skipping email.");
+        return;
     }
 
-    const emailTemplate = generateEmailTemplate(userName, report);
+    const pdfBase64 = await generatePDF(report);
+    
+    const emailData = {
+      From: Deno.env.get("POSTMARK_FROM_EMAIL") || "noreply@academgrad.com",
+      To: email,
+      Subject: `📊 Ваш недельный отчет AcademGrad (${formatDate(report.weekStart)} - ${formatDate(report.weekEnd)})`,
+      HtmlBody: generateEmailHTML(report),
+      TextBody: generateEmailText(report),
+      Attachments: pdfBase64 ? [
+        {
+          Name: `AcademGrad_Report_${formatDateForFile(report.weekEnd)}.pdf`,
+          Content: pdfBase64,
+          ContentType: "application/pdf"
+        }
+      ] : []
+    };
 
     const response = await fetch("https://api.postmarkapp.com/email", {
       method: "POST",
@@ -132,105 +152,195 @@ async function sendWeeklyReportEmail(email: string, userName: string, report: an
         "Content-Type": "application/json",
         "X-Postmark-Server-Token": postmarkToken
       },
-      body: JSON.stringify({
-        From: Deno.env.get("POSTMARK_FROM_EMAIL") || "noreply@yourapp.com",
-        To: email,
-        Subject: `Ваш недельный отчет по обучению`,
-        HtmlBody: emailTemplate.html,
-        TextBody: emailTemplate.text,
-        MessageStream: "outbound"
-      })
+      body: JSON.stringify(emailData)
     });
 
     if (!response.ok) {
-      const error = await response.text();
-      console.error("Failed to send email via Postmark:", error);
-    } else {
-      console.log(`Weekly report email sent to ${email}`);
+        const error = await response.text();
+        throw new Error(`Postmark API error: ${response.status} - ${error}`);
     }
+
+    console.log(`Report email sent to ${email}`);
   } catch (error) {
-    console.error("Error sending email:", error);
+    console.error(`Error sending email to ${email}:`, error);
   }
 }
 
-function generateEmailTemplate(userName: string, report: any) {
-  const accuracyPercent = Math.round(report.accuracy * 100);
-  
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: #4F46E5; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-            .content { background: #f9f9f9; padding: 20px; border-radius: 0 0 8px 8px; }
-            .stat { background: white; padding: 15px; margin: 10px 0; border-radius: 6px; border-left: 4px solid #4F46E5; }
-            .weak-topics { background: #FEF2F2; border-left-color: #EF4444; }
-            .topics-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-            .topic-tag { background: #E0E7FF; color: #3730A3; padding: 4px 12px; border-radius: 20px; font-size: 14px; }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1>📊 Недельный отчет</h1>
-                <p>Привет, ${userName}!</p>
-            </div>
-            <div class="content">
-                <div class="stat">
-                    <h3>📈 Статистика за неделю</h3>
-                    <p><strong>Решено задач:</strong> ${report.tasks_solved}</p>
-                    <p><strong>Точность:</strong> ${accuracyPercent}%</p>
-                </div>
-                
-                <div class="stat">
-                    <h3>📚 Изученные темы</h3>
-                    <div class="topics-list">
-                        ${report.topics_covered.map((topic: string) => 
-                          `<span class="topic-tag">${topic}</span>`
-                        ).join('')}
-                    </div>
-                </div>
-                
-                ${report.weak_topics.length > 0 ? `
-                <div class="stat weak-topics">
-                    <h3>⚠️ Темы для повторения</h3>
-                    <p>Обратите внимание на эти темы (точность < 50%):</p>
-                    <div class="topics-list">
-                        ${report.weak_topics.map((topic: string) => 
-                          `<span class="topic-tag">${topic}</span>`
-                        ).join('')}
-                    </div>
-                </div>` : ''}
-                
-                <div style="text-align: center; margin-top: 30px;">
-                    <p>Продолжайте обучение! 🚀</p>
-                </div>
-            </div>
+async function generatePDF(report: any): Promise<string> {
+  try {
+    // This Python script uses reportlab to generate a PDF and returns it as a base64 string.
+    const pythonScript = `
+import sys, json, base64, tempfile, os
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib import colors
+
+def generate_report_pdf(report_data):
+    with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
+        pdf_path = tmp.name
+    try:
+        doc = SimpleDocTemplate(pdf_path, pagesize=letter)
+        styles = getSampleStyleSheet()
+        story = []
+        
+        title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=24, spaceAfter=30, textColor=colors.HexColor('#2563eb'))
+        story.append(Paragraph("📊 Недельный отчет AcademGrad", title_style))
+        story.append(Spacer(1, 12))
+        
+        user_info = f"<b>Пользователь:</b> {report_data['userName']}<br/><b>Период:</b> {report_data['weekStart'][:10]} - {report_data['weekEnd'][:10]}"
+        story.append(Paragraph(user_info, styles['Normal']))
+        story.append(Spacer(1, 20))
+        
+        story.append(Paragraph("<b>Статистика недели:</b>", styles['Heading2']))
+        stats_data = [
+            ['Показатель', 'Значение'],
+            ['Всего попыток', str(report_data['totalAttempts'])],
+            ['Правильных ответов', str(report_data['correctAttempts'])],
+            ['Точность', f"{report_data['accuracy']}%"],
+            ['Время занятий', f"{report_data['totalTimeSpent']} мин"],
+            ['Средняя сложность', str(report_data['avgDifficulty'])],
+        ]
+        stats_table = Table(stats_data, colWidths=[2*inch, 2*inch])
+        stats_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2563eb')), ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'), ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 14), ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige), ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        story.append(stats_table)
+        story.append(Spacer(1, 20))
+        
+        if report_data.get('topicStats'):
+            story.append(Paragraph("<b>Статистика по темам:</b>", styles['Heading2']))
+            topic_data = [['Тема', 'Попыток', 'Правильно', 'Точность']]
+            for topic_stat in report_data['topicStats']:
+                topic_data.append([topic_stat['topic'], str(topic_stat['total']), str(topic_stat['correct']), f"{topic_stat['accuracy']}%"])
+            topic_table = Table(topic_data, colWidths=[2.5*inch, 1*inch, 1*inch, 1*inch])
+            topic_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#10b981')), ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'), ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 12), ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.lightgrey), ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            story.append(topic_table)
+        
+        doc.build(story)
+        
+        with open(pdf_path, 'rb') as f:
+            pdf_content = f.read()
+            return base64.b64encode(pdf_content).decode('utf-8')
+    finally:
+        if os.path.exists(pdf_path):
+            os.unlink(pdf_path)
+
+if __name__ == "__main__":
+    report_data = json.loads(sys.argv[1])
+    pdf_base64 = generate_report_pdf(report_data)
+    print(pdf_base64)
+`;
+
+    const process = new Deno.Command("python3", {
+      args: ["-c", pythonScript, JSON.stringify(report)],
+      stdout: "piped",
+      stderr: "piped",
+    });
+
+    const { code, stdout, stderr } = await process.output();
+
+    if (code !== 0) {
+      console.error("Python PDF generation error:", new TextDecoder().decode(stderr));
+      throw new Error("PDF generation failed");
+    }
+
+    return new TextDecoder().decode(stdout).trim();
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    return "";
+  }
+}
+
+function generateEmailHTML(report: any): string {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .header { background: #2563eb; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; }
+        .stats { background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; }
+        .stat-item { display: inline-block; margin: 10px 20px 10px 0; }
+        .stat-value { font-size: 24px; font-weight: bold; color: #2563eb; }
+        .stat-label { color: #64748b; font-size: 14px; }
+        .topic-stats { margin-top: 20px; }
+        .topic-item { background: white; border: 1px solid #e2e8f0; padding: 10px; margin: 5px 0; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Ваш недельный отчет AcademGrad</h1>
+        <p>Период: ${formatDate(report.weekStart)} - ${formatDate(report.weekEnd)}</p>
+    </div>
+    
+    <div class="content">
+        <h2>Привет, ${report.userName}! 👋</h2>
+        <p>Вот ваша статистика за прошедшую неделю:</p>
+        
+        <div class="stats">
+            <div class="stat-item"><div class="stat-value">${report.totalAttempts}</div><div class="stat-label">Всего попыток</div></div>
+            <div class="stat-item"><div class="stat-value">${report.accuracy}%</div><div class="stat-label">Точность</div></div>
+            <div class="stat-item"><div class="stat-value">${report.totalTimeSpent}</div><div class="stat-label">Минут занятий</div></div>
+            <div class="stat-item"><div class="stat-value">${report.avgDifficulty}</div><div class="stat-label">Средняя сложность</div></div>
         </div>
-    </body>
-    </html>
+
+        ${report.topicStats?.length ? `
+        <div class="topic-stats">
+            <h3>Статистика по темам:</h3>
+            ${report.topicStats.map((topic: any) => `
+                <div class="topic-item"><strong>${topic.topic}</strong> - ${topic.correct}/${topic.total} (${topic.accuracy}%)</div>
+            `).join('')}
+        </div>
+        ` : ''}
+        
+        <p>📎 Подробный отчет в формате PDF прикреплен к этому письму.</p>
+        <p>Продолжайте в том же духе! 💪</p>
+        <p>С уважением,<br>Команда AcademGrad</p>
+    </div>
+</body>
+</html>
   `;
+}
 
-  const text = `
-Недельный отчет по обучению
-
-Привет, ${userName}!
-
-📈 Статистика за неделю:
-- Решено задач: ${report.tasks_solved}
-- Точность: ${accuracyPercent}%
-
-📚 Изученные темы: ${report.topics_covered.join(', ')}
-
-${report.weak_topics.length > 0 ? `
-⚠️ Темы для повторения (точность < 50%): ${report.weak_topics.join(', ')}
+function generateEmailText(report: any): string {
+  return `
+📊 Ваш недельный отчет AcademGrad
+Привет, ${report.userName}!
+Вот ваша статистика за период ${formatDate(report.weekStart)} - ${formatDate(report.weekEnd)}:
+📈 Всего попыток: ${report.totalAttempts}
+✅ Правильных ответов: ${report.correctAttempts}
+🎯 Точность: ${report.accuracy}%
+⏱️ Время занятий: ${report.totalTimeSpent} минут
+📊 Средняя сложность: ${report.avgDifficulty}
+${report.topicStats?.length ? `
+Статистика по темам:
+${report.topicStats.map((topic: any) => 
+  `• ${topic.topic}: ${topic.correct}/${topic.total} (${topic.accuracy}%)`
+).join('\n')}
 ` : ''}
-
-Продолжайте обучение! 🚀
+📎 Подробный отчет в формате PDF прикреплен к этому письму.
+Продолжайте в том же духе! 💪
+С уважением,
+Команда AcademGrad
   `;
+}
 
-  return { html, text };
+function formatDate(dateString: string): string {
+  return new Date(dateString).toLocaleDateString('ru-RU');
+}
+
+function formatDateForFile(dateString: string): string {
+  return new Date(dateString).toISOString().split('T')[0];
 }
