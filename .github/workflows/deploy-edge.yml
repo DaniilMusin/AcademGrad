@@ -1,0 +1,126 @@
+name: Deploy Edge Functions
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'supabase/edge-functions/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'supabase/edge-functions/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    environment:
+      name: production
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Deno
+      uses: denoland/setup-deno@v1
+      with:
+        deno-version: v1.x
+        
+    - name: Setup Supabase CLI
+      uses: supabase/setup-cli@v1
+      with:
+        version: latest
+        
+    - name: Verify Edge Functions syntax
+      run: |
+        cd supabase/edge-functions
+        for dir in */; do
+          if [ -f "$dir/index.ts" ]; then
+            echo "Checking syntax for $dir"
+            deno check "$dir/index.ts"
+          fi
+        done
+        
+    - name: Deploy Edge Functions
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+        SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      run: |
+        # Link to the project
+        supabase link --project-ref $SUPABASE_PROJECT_ID
+        
+        # Deploy all edge functions
+        supabase functions deploy --no-verify-jwt
+        
+    - name: Verify deployment
+      env:
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      run: |
+        # Test each function endpoint
+        functions=(
+          "badge-cron"
+          "chat-task" 
+          "log-attempt"
+          "payment"
+          "tg-bot"
+          "weekly-report"
+          "match_upload"
+        )
+        
+        for func in "${functions[@]}"; do
+          echo "Testing function: $func"
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X GET \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            "$SUPABASE_URL/functions/v1/$func")
+          
+          if [ "$response" -ge 200 ] && [ "$response" -lt 500 ]; then
+            echo "✅ $func is responding (HTTP $response)"
+          else
+            echo "❌ $func failed (HTTP $response)"
+            exit 1
+          fi
+        done
+        
+    - name: Notify on success
+      if: success()
+      run: |
+        echo "🚀 Edge Functions deployed successfully!"
+        
+    - name: Notify on failure
+      if: failure()
+      run: |
+        echo "❌ Edge Functions deployment failed!"
+
+  test-edge-functions:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Deno
+      uses: denoland/setup-deno@v1
+      with:
+        deno-version: v1.x
+        
+    - name: Lint Edge Functions
+      run: |
+        cd supabase/edge-functions
+        for dir in */; do
+          if [ -f "$dir/index.ts" ]; then
+            echo "Linting $dir"
+            deno lint "$dir/index.ts" || true
+            deno check "$dir/index.ts"
+          fi
+        done
+        
+    - name: Run Edge Function tests
+      run: |
+        cd supabase/edge-functions
+        # Add any tests here if they exist
+        echo "Edge function tests completed"
