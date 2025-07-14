@@ -22,16 +22,17 @@ serve(async (req) => {
 
     for (const user of users.users) {
       const report = await generateUserReport(supabase, user.id, weekStart, weekEnd);
-      if (report) {
+      if (report && user.email) {
         // Generate PDF and send via email
-        await sendReportEmail(user.email!, report);
+        await sendReportEmail(user.email, report);
         reports.push(report);
       }
     }
 
     return new Response(JSON.stringify({ 
       status: "success", 
-      reports_generated: reports.length 
+      reports_generated: reports.length,
+      emails_sent: reports.length
     }), {
       headers: { "Content-Type": "application/json" }
     });
@@ -121,6 +122,12 @@ function getTopicStats(attempts: any[]) {
 
 async function sendReportEmail(email: string, report: any) {
   try {
+    const postmarkToken = Deno.env.get("POSTMARK_API_TOKEN");
+    if (!postmarkToken) {
+        console.warn("POSTMARK_API_TOKEN is not set. Skipping email.");
+        return;
+    }
+
     const pdfBase64 = await generatePDF(report);
     
     const emailData = {
@@ -129,13 +136,13 @@ async function sendReportEmail(email: string, report: any) {
       Subject: `📊 Ваш недельный отчет AcademGrad (${formatDate(report.weekStart)} - ${formatDate(report.weekEnd)})`,
       HtmlBody: generateEmailHTML(report),
       TextBody: generateEmailText(report),
-      Attachments: [
+      Attachments: pdfBase64 ? [
         {
           Name: `AcademGrad_Report_${formatDateForFile(report.weekEnd)}.pdf`,
           Content: pdfBase64,
           ContentType: "application/pdf"
         }
-      ]
+      ] : []
     };
 
     const response = await fetch("https://api.postmarkapp.com/email", {
@@ -143,13 +150,14 @@ async function sendReportEmail(email: string, report: any) {
       headers: {
         "Accept": "application/json",
         "Content-Type": "application/json",
-        "X-Postmark-Server-Token": Deno.env.get("POSTMARK_API_TOKEN")!
+        "X-Postmark-Server-Token": postmarkToken
       },
       body: JSON.stringify(emailData)
     });
 
     if (!response.ok) {
-      throw new Error(`Postmark API error: ${response.status}`);
+        const error = await response.text();
+        throw new Error(`Postmark API error: ${response.status} - ${error}`);
     }
 
     console.log(`Report email sent to ${email}`);
@@ -160,51 +168,32 @@ async function sendReportEmail(email: string, report: any) {
 
 async function generatePDF(report: any): Promise<string> {
   try {
-    // Generate PDF using Python script
+    // This Python script uses reportlab to generate a PDF and returns it as a base64 string.
     const pythonScript = `
-import sys
-import json
-import base64
+import sys, json, base64, tempfile, os
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib import colors
-from reportlab.pdfbase import pdfutils
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.pdfbase import pdfmetrics
-import tempfile
-import os
 
 def generate_report_pdf(report_data):
-    # Create temporary file
     with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
         pdf_path = tmp.name
-    
     try:
         doc = SimpleDocTemplate(pdf_path, pagesize=letter)
         styles = getSampleStyleSheet()
         story = []
         
-        # Title
-        title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Heading1'],
-            fontSize=24,
-            spaceAfter=30,
-            textColor=colors.HexColor('#2563eb')
-        )
-        
+        title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=24, spaceAfter=30, textColor=colors.HexColor('#2563eb'))
         story.append(Paragraph("📊 Недельный отчет AcademGrad", title_style))
         story.append(Spacer(1, 12))
         
-        # User info
-        user_info = f"<b>Пользователь:</b> {report_data['userName']}<br/>"
-        user_info += f"<b>Период:</b> {report_data['weekStart'][:10]} - {report_data['weekEnd'][:10]}<br/>"
+        user_info = f"<b>Пользователь:</b> {report_data['userName']}<br/><b>Период:</b> {report_data['weekStart'][:10]} - {report_data['weekEnd'][:10]}"
         story.append(Paragraph(user_info, styles['Normal']))
         story.append(Spacer(1, 20))
         
-        # Statistics
+        story.append(Paragraph("<b>Статистика недели:</b>", styles['Heading2']))
         stats_data = [
             ['Показатель', 'Значение'],
             ['Всего попыток', str(report_data['totalAttempts'])],
@@ -213,62 +202,36 @@ def generate_report_pdf(report_data):
             ['Время занятий', f"{report_data['totalTimeSpent']} мин"],
             ['Средняя сложность', str(report_data['avgDifficulty'])],
         ]
-        
         stats_table = Table(stats_data, colWidths=[2*inch, 2*inch])
         stats_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2563eb')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 14),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2563eb')), ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'), ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 14), ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige), ('GRID', (0, 0), (-1, -1), 1, colors.black)
         ]))
-        
-        story.append(Paragraph("<b>Статистика недели:</b>", styles['Heading2']))
         story.append(stats_table)
         story.append(Spacer(1, 20))
         
-        # Topic statistics
         if report_data.get('topicStats'):
             story.append(Paragraph("<b>Статистика по темам:</b>", styles['Heading2']))
-            
             topic_data = [['Тема', 'Попыток', 'Правильно', 'Точность']]
             for topic_stat in report_data['topicStats']:
-                topic_data.append([
-                    topic_stat['topic'],
-                    str(topic_stat['total']),
-                    str(topic_stat['correct']),
-                    f"{topic_stat['accuracy']}%"
-                ])
-            
+                topic_data.append([topic_stat['topic'], str(topic_stat['total']), str(topic_stat['correct']), f"{topic_stat['accuracy']}%"])
             topic_table = Table(topic_data, colWidths=[2.5*inch, 1*inch, 1*inch, 1*inch])
             topic_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#10b981')),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 12),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.lightgrey),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#10b981')), ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'), ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 12), ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.lightgrey), ('GRID', (0, 0), (-1, -1), 1, colors.black)
             ]))
-            
             story.append(topic_table)
         
-        # Build PDF
         doc.build(story)
         
-        # Read and encode PDF
         with open(pdf_path, 'rb') as f:
             pdf_content = f.read()
-            pdf_base64 = base64.b64encode(pdf_content).decode('utf-8')
-        
-        return pdf_base64
-        
+            return base64.b64encode(pdf_content).decode('utf-8')
     finally:
-        # Clean up
         if os.path.exists(pdf_path):
             os.unlink(pdf_path)
 
@@ -294,7 +257,6 @@ if __name__ == "__main__":
     return new TextDecoder().decode(stdout).trim();
   } catch (error) {
     console.error("Error generating PDF:", error);
-    // Return empty base64 string if PDF generation fails
     return "";
   }
 }
@@ -328,43 +290,24 @@ function generateEmailHTML(report: any): string {
         <p>Вот ваша статистика за прошедшую неделю:</p>
         
         <div class="stats">
-            <div class="stat-item">
-                <div class="stat-value">${report.totalAttempts}</div>
-                <div class="stat-label">Всего попыток</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value">${report.accuracy}%</div>
-                <div class="stat-label">Точность</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value">${report.totalTimeSpent}</div>
-                <div class="stat-label">Минут занятий</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value">${report.avgDifficulty}</div>
-                <div class="stat-label">Средняя сложность</div>
-            </div>
+            <div class="stat-item"><div class="stat-value">${report.totalAttempts}</div><div class="stat-label">Всего попыток</div></div>
+            <div class="stat-item"><div class="stat-value">${report.accuracy}%</div><div class="stat-label">Точность</div></div>
+            <div class="stat-item"><div class="stat-value">${report.totalTimeSpent}</div><div class="stat-label">Минут занятий</div></div>
+            <div class="stat-item"><div class="stat-value">${report.avgDifficulty}</div><div class="stat-label">Средняя сложность</div></div>
         </div>
 
         ${report.topicStats?.length ? `
         <div class="topic-stats">
             <h3>Статистика по темам:</h3>
             ${report.topicStats.map((topic: any) => `
-                <div class="topic-item">
-                    <strong>${topic.topic}</strong> - ${topic.correct}/${topic.total} (${topic.accuracy}%)
-                </div>
+                <div class="topic-item"><strong>${topic.topic}</strong> - ${topic.correct}/${topic.total} (${topic.accuracy}%)</div>
             `).join('')}
         </div>
         ` : ''}
         
         <p>📎 Подробный отчет в формате PDF прикреплен к этому письму.</p>
-        
         <p>Продолжайте в том же духе! 💪</p>
-        
-        <p>
-            С уважением,<br>
-            Команда AcademGrad
-        </p>
+        <p>С уважением,<br>Команда AcademGrad</p>
     </div>
 </body>
 </html>
@@ -374,28 +317,21 @@ function generateEmailHTML(report: any): string {
 function generateEmailText(report: any): string {
   return `
 📊 Ваш недельный отчет AcademGrad
-
 Привет, ${report.userName}!
-
 Вот ваша статистика за период ${formatDate(report.weekStart)} - ${formatDate(report.weekEnd)}:
-
 📈 Всего попыток: ${report.totalAttempts}
 ✅ Правильных ответов: ${report.correctAttempts}
 🎯 Точность: ${report.accuracy}%
 ⏱️ Время занятий: ${report.totalTimeSpent} минут
 📊 Средняя сложность: ${report.avgDifficulty}
-
 ${report.topicStats?.length ? `
 Статистика по темам:
 ${report.topicStats.map((topic: any) => 
   `• ${topic.topic}: ${topic.correct}/${topic.total} (${topic.accuracy}%)`
 ).join('\n')}
 ` : ''}
-
 📎 Подробный отчет в формате PDF прикреплен к этому письму.
-
 Продолжайте в том же духе! 💪
-
 С уважением,
 Команда AcademGrad
   `;
