@@ -1,5 +1,12 @@
 -- Additional tables for full functionality
 
+
+-- Add new fields to tasks table
+ALTER TABLE public.tasks 
+ADD COLUMN IF NOT EXISTS tags jsonb DEFAULT '[]',
+ADD COLUMN IF NOT EXISTS points int DEFAULT 1,
+ADD COLUMN IF NOT EXISTS time_limit int DEFAULT 30;
+
 -- Events table for tracking user actions
 CREATE TABLE public.events (
   id            bigserial primary key,

@@ -10,27 +10,28 @@ export default function Step2() {
   const supabase = createClient();
 
   useEffect(() => {
+    const loadCurrentPreferences = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: preferences } = await supabase
+            .from('user_preferences')
+            .select('weak_topics')
+            .eq('user_id', user.id)
+            .single();
+          
+          if (preferences?.weak_topics) {
+            setSelectedTopics(preferences.weak_topics);
+          }
+        }
+      } catch (error) {
+        // It's okay if preferences don't exist yet, so we can ignore the error.
+        // console.error('Error loading preferences:', error);
+      }
+    };
+
     loadCurrentPreferences();
   }, []);
-
-  const loadCurrentPreferences = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: preferences } = await supabase
-          .from('user_preferences')
-          .select('weak_topics')
-          .eq('user_id', user.id)
-          .single();
-        
-        if (preferences?.weak_topics) {
-          setSelectedTopics(preferences.weak_topics);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading preferences:', error);
-    }
-  };
 
   const handleTopicToggle = async (topic: string) => {
     const newTopics = selectedTopics.includes(topic)
@@ -53,6 +54,7 @@ export default function Step2() {
       }
     } catch (error) {
       console.error('Error saving weak topics:', error);
+      // Optionally, provide feedback to the user
     } finally {
       setIsLoading(false);
     }
@@ -149,7 +151,7 @@ export default function Step2() {
         {selectedTopics.length > 0 && (
           <div className="mt-8 p-6 bg-orange-50 border border-orange-200 rounded-lg">
             <div className="flex items-start">
-              <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center mr-3 mt-1">
+              <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center mr-3 mt-1 shrink-0">
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -169,7 +171,7 @@ export default function Step2() {
                   ))}
                 </div>
                 <p className="text-sm text-orange-700 mt-2">
-                  Мы увеличим количество заданий по этим темам и добавим дополнительные материалы
+                  Мы увеличим количество заданий по этим темам и добавим дополнительные материалы.
                 </p>
               </div>
             </div>
