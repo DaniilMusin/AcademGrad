@@ -1,149 +1,216 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase";
+import ProgressChart from "@/components/ProgressChart";
+// Assuming you have a BadgeCarousel component
+// import BadgeCarousel from "@/components/BadgeCarousel";
 
-export default function Step1() {
-  const [selectedExam, setSelectedExam] = useState<string>("");
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
+interface WeakTopic {
+  topic: string;
+  error_rate: number;
+  attempts_count: number;
+  last_attempt: string;
+}
 
-  const handleNext = async () => {
-    if (!selectedExam) {
-      alert("Пожалуйста, выберите экзамен");
-      return;
-    }
+interface Badge {
+  id: number;
+  code: string;
+  title: string;
+  icon: string;
+  given_at: string;
+}
 
+export default function Dashboard() {
+  const [weakTopics, setWeakTopics] = useState<WeakTopic[]>([]);
+  const [badges, setBadges] = useState<Badge[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState({
+    tasksSolved: 0,
+    currentStreak: 0, // You might need another query for this
+    totalXp: 0, // And this
+  });
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
     setLoading(true);
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
-        alert("Необходимо войти в систему");
+        setError("Необходимо войти в систему");
+        setLoading(false);
         return;
       }
 
-      // Сохраняем выбор экзамена в preferences
-      const { error } = await supabase.auth.updateUser({
-        data: {
-          preferences: {
-            exam: selectedExam,
-            onboarding_step: 2
-          }
-        }
+      // Fetch weak topics
+      const { data: weakTopicsData, error: weakTopicsError } = await supabase
+        .from("weak_topics")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("error_rate", { ascending: false })
+        .limit(10);
+
+      if (weakTopicsError) throw weakTopicsError;
+      setWeakTopics(weakTopicsData || []);
+
+      // Fetch badges
+      const { data: badgesData, error: badgesError } = await supabase
+        .from("user_badges")
+        .select(`
+          given_at,
+          badges (id, code, title, icon)
+        `)
+        .eq("user_id", user.id)
+        .order("given_at", { ascending: false });
+
+      if (badgesError) throw badgesError;
+      const formattedBadges = badgesData?.map(item => ({
+        ...item.badges,
+        given_at: item.given_at,
+      })) || [];
+      setBadges(formattedBadges);
+
+      // Fetch user progress for stats
+      const { data: progressData, error: progressError } = await supabase
+        .from("user_progress")
+        .select("total_xp, current_streak")
+        .eq("user_id", user.id)
+        .single();
+        
+      if (progressError) console.error("Could not load user progress stats");
+
+      const totalAttempts = weakTopicsData?.reduce((sum, topic) => sum + topic.attempts_count, 0) || 0;
+
+      setStats({
+          tasksSolved: totalAttempts,
+          currentStreak: progressData?.current_streak || 0,
+          totalXp: progressData?.total_xp || 0
       });
 
-      if (error) {
-        console.error("Error updating user preferences:", error);
-        alert("Ошибка сохранения данных");
-      } else {
-        router.push("/onboarding/step-2");
-      }
-    } catch (err) {
-      console.error("Error in step 1:", err);
-      alert("Произошла ошибка");
+
+    } catch (err: any) {
+      console.error("Error loading dashboard:", err);
+      setError("Ошибка загрузки данных: " + err.message);
     } finally {
       setLoading(false);
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="loading loading-spinner loading-lg"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-center">
+        <div>
+            <h2 className="text-2xl font-bold text-red-600 mb-4">Ошибка</h2>
+            <p className="text-gray-600">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Добро пожаловать!
-          </h1>
-          <p className="text-gray-600">
-            Шаг 1 из 4: Выберите экзамен для подготовки
-          </p>
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Личный кабинет</h1>
+          <p className="text-gray-600">Отслеживайте свой прогресс и достижения</p>
         </div>
 
-        <div className="space-y-4">
-          <div 
-            className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-              selectedExam === "ege" 
-                ? "border-blue-500 bg-blue-50" 
-                : "border-gray-200 hover:border-gray-300"
-            }`}
-            onClick={() => setSelectedExam("ege")}
-          >
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-lg shadow-lg p-6">
             <div className="flex items-center">
-              <input
-                type="radio"
-                id="ege"
-                name="exam"
-                value="ege"
-                checked={selectedExam === "ege"}
-                onChange={(e) => setSelectedExam(e.target.value)}
-                className="mr-3"
-              />
-              <div>
-                <label htmlFor="ege" className="font-medium text-gray-900 cursor-pointer">
-                  ЕГЭ (11 класс)
-                </label>
-                <p className="text-sm text-gray-500">
-                  Подготовка к Единому государственному экзамену
-                </p>
+              <div className="p-3 bg-blue-100 rounded-full"><span className="text-2xl">📚</span></div>
+              <div className="ml-4">
+                <p className="text-sm text-gray-600">Tasks Solved</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.tasksSolved}</p>
               </div>
             </div>
           </div>
-
-          <div 
-            className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-              selectedExam === "oge" 
-                ? "border-blue-500 bg-blue-50" 
-                : "border-gray-200 hover:border-gray-300"
-            }`}
-            onClick={() => setSelectedExam("oge")}
-          >
+          <div className="bg-white rounded-lg shadow-lg p-6">
             <div className="flex items-center">
-              <input
-                type="radio"
-                id="oge"
-                name="exam"
-                value="oge"
-                checked={selectedExam === "oge"}
-                onChange={(e) => setSelectedExam(e.target.value)}
-                className="mr-3"
-              />
-              <div>
-                <label htmlFor="oge" className="font-medium text-gray-900 cursor-pointer">
-                  ОГЭ (9 класс)
-                </label>
-                <p className="text-sm text-gray-500">
-                  Подготовка к Основному государственному экзамену
-                </p>
+              <div className="p-3 bg-red-100 rounded-full"><span className="text-2xl">🔥</span></div>
+              <div className="ml-4">
+                <p className="text-sm text-gray-600">Current Streak</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.currentStreak}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <div className="flex items-center">
+              <div className="p-3 bg-purple-100 rounded-full"><span className="text-2xl">⭐</span></div>
+              <div className="ml-4">
+                <p className="text-sm text-gray-600">Total XP</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.totalXp}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <div className="flex items-center">
+              <div className="p-3 bg-green-100 rounded-full"><span className="text-2xl">🏆</span></div>
+              <div className="ml-4">
+                <p className="text-sm text-gray-600">Badges</p>
+                <p className="text-2xl font-bold text-gray-900">{badges.length}</p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="mt-8 flex justify-between">
-          <button
-            onClick={() => router.push("/")}
-            className="px-4 py-2 text-gray-600 hover:text-gray-800"
-          >
-            ← Назад
-          </button>
-          <button
-            onClick={handleNext}
-            disabled={loading || !selectedExam}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? "Сохранение..." : "Далее →"}
-          </button>
-        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Weak Topics Chart */}
+          <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border p-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">Темы для повторения</h2>
+            {weakTopics.length > 0 ? (
+              <div>
+                <ProgressChart data={weakTopics} />
+                <div className="mt-4 text-sm text-gray-600">
+                  <p>Показаны темы с наибольшим процентом ошибок за последние 30 дней.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500">Пока нет данных для анализа. Решите несколько задач!</p>
+              </div>
+            )}
+          </div>
 
-        {/* Индикатор прогресса */}
-        <div className="mt-6">
-          <div className="flex items-center justify-center space-x-2">
-            <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
-            <div className="w-3 h-3 bg-gray-300 rounded-full"></div>
-            <div className="w-3 h-3 bg-gray-300 rounded-full"></div>
-            <div className="w-3 h-3 bg-gray-300 rounded-full"></div>
+          {/* Badges List */}
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">Достижения</h2>
+            {badges.length > 0 ? (
+              <div className="space-y-3">
+                {badges.slice(0, 5).map((badge) => (
+                  <div key={badge.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <div className="text-2xl">{badge.icon}</div>
+                    <div className="flex-1">
+                      <h3 className="font-medium text-gray-900">{badge.title}</h3>
+                      <p className="text-sm text-gray-500">
+                        {new Date(badge.given_at).toLocaleDateString('ru-RU')}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                {badges.length > 5 && <p className="text-sm text-center text-gray-500 mt-4">...и еще {badges.length - 5}</p>}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="text-4xl mb-3">🏆</div>
+                <p className="text-gray-500 text-sm">Пока нет достижений. Решайте задачи, чтобы получить первый бейдж!</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

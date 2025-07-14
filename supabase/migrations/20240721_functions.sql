@@ -17,7 +17,7 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
   RETURN QUERY
-  SELECT 
+  SELECT
     tc.id,
     tc.task_id,
     tc.chunk_text,
@@ -42,7 +42,7 @@ AS $$
 BEGIN
   RETURN QUERY
   WITH daily_attempts AS (
-    SELECT 
+    SELECT
       a.user_id,
       DATE(a.ts) as attempt_date,
       COUNT(*) as attempts_count
@@ -51,21 +51,21 @@ BEGIN
     GROUP BY a.user_id, DATE(a.ts)
   ),
   consecutive_days AS (
-    SELECT 
+    SELECT
       da.user_id,
       da.attempt_date,
       da.attempt_date - ROW_NUMBER() OVER (PARTITION BY da.user_id ORDER BY da.attempt_date)::int as streak_group
     FROM daily_attempts da
   ),
   streak_counts AS (
-    SELECT 
+    SELECT
       cd.user_id,
       COUNT(*) as streak_length,
       MAX(cd.attempt_date) as latest_date
     FROM consecutive_days cd
     GROUP BY cd.user_id, cd.streak_group
   )
-  SELECT 
+  SELECT
     sc.user_id,
     MAX(sc.streak_length)::integer as streak
   FROM streak_counts sc
@@ -86,7 +86,7 @@ AS $$
 BEGIN
   RETURN QUERY
   WITH numbered_attempts AS (
-    SELECT 
+    SELECT
       a.user_id,
       a.is_correct,
       a.ts,
@@ -95,16 +95,16 @@ BEGIN
     WHERE a.ts >= NOW() - INTERVAL '60 days'
   ),
   streak_breaks AS (
-    SELECT 
+    SELECT
       na.user_id,
       na.rn,
       na.is_correct,
-      SUM(CASE WHEN na.is_correct = false THEN 1 ELSE 0 END) 
+      SUM(CASE WHEN na.is_correct = false THEN 1 ELSE 0 END)
         OVER (PARTITION BY na.user_id ORDER BY na.rn) as break_group
     FROM numbered_attempts na
   ),
   streak_lengths AS (
-    SELECT 
+    SELECT
       sb.user_id,
       sb.break_group,
       COUNT(*) as streak_length
@@ -112,7 +112,7 @@ BEGIN
     WHERE sb.is_correct = true
     GROUP BY sb.user_id, sb.break_group
   )
-  SELECT 
+  SELECT
     sl.user_id,
     MAX(sl.streak_length)::integer as perfect_streak
   FROM streak_lengths sl
@@ -132,7 +132,7 @@ AS $$
 BEGIN
   RETURN QUERY
   WITH user_activity AS (
-    SELECT 
+    SELECT
       a.user_id,
       a.ts,
       LAG(a.ts) OVER (PARTITION BY a.user_id ORDER BY a.ts) as prev_activity
@@ -140,7 +140,7 @@ BEGIN
     WHERE a.ts >= NOW() - INTERVAL '90 days'
   ),
   comeback_activities AS (
-    SELECT 
+    SELECT
       ua.user_id,
       ua.ts,
       ua.prev_activity,
@@ -150,7 +150,7 @@ BEGIN
       AND EXTRACT(EPOCH FROM (ua.ts - ua.prev_activity)) / 86400 >= 7
   ),
   recent_comebacks AS (
-    SELECT 
+    SELECT
       ca.user_id,
       MIN(ca.ts) as first_comeback,
       EXTRACT(EPOCH FROM (NOW() - MIN(ca.ts))) / 86400 as days_since_return
@@ -158,7 +158,7 @@ BEGIN
     WHERE ca.ts >= NOW() - INTERVAL '7 days'
     GROUP BY ca.user_id
   )
-  SELECT 
+  SELECT
     rc.user_id,
     rc.days_since_return::integer as days_since_return
   FROM recent_comebacks rc;
@@ -176,12 +176,12 @@ DECLARE
 BEGIN
   -- Calculate current streak
   WITH consecutive_days AS (
-    SELECT 
+    SELECT
       DATE(ts) as solve_date,
       ROW_NUMBER() OVER (ORDER BY DATE(ts) DESC) as row_num,
       DATE(ts) - INTERVAL '1 day' * (ROW_NUMBER() OVER (ORDER BY DATE(ts) DESC) - 1) as expected_date
-    FROM attempts 
-    WHERE user_id = user_uuid 
+    FROM attempts
+    WHERE user_id = user_uuid
       AND is_correct = true
       AND ts >= NOW() - INTERVAL '30 days'
     GROUP BY DATE(ts)
@@ -193,7 +193,7 @@ BEGIN
 
   -- Award streak badges
   IF current_streak >= 5 AND NOT EXISTS (
-    SELECT 1 FROM user_badges 
+    SELECT 1 FROM user_badges
     WHERE user_id = user_uuid AND badge_id = 1
   ) THEN
     INSERT INTO user_badges (user_id, badge_id) VALUES (user_uuid, 1);
@@ -210,7 +210,7 @@ BEGIN
     ) as recent_correct
     WHERE correct_count >= 3
   ) AND NOT EXISTS (
-    SELECT 1 FROM user_badges 
+    SELECT 1 FROM user_badges
     WHERE user_id = user_uuid AND badge_id = 2
   ) THEN
     INSERT INTO user_badges (user_id, badge_id) VALUES (user_uuid, 2);

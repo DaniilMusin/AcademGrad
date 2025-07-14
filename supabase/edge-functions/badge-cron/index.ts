@@ -12,6 +12,7 @@ interface BadgeAward {
   badge_id: number;
 }
 
+// This list can be managed elsewhere but is here for clarity
 const BADGE_RULES: BadgeRule[] = [
   { id: 1, condition: "streak_5", description: "Решай задачи 5 дней подряд" },
   { id: 2, condition: "speed_demon", description: "Решай задачи быстро (< 60 сек)" },
@@ -66,208 +67,18 @@ serve(async (req) => {
   }
 });
 
-async function awardStreakBadges(supabase: any): Promise<number> {
-  console.log("🔥 Checking streak badges");
-  
-  // Get users with consecutive days of solving tasks
-  const { data: streakData } = await supabase.rpc("get_user_streaks");
-  
-  if (!streakData?.length) return 0;
-  
-  const badges: BadgeAward[] = [];
-  
-  for (const user of streakData) {
-    // Award streak badge for 5+ consecutive days
-    if (user.streak >= 5 && !await hasBadge(supabase, user.user_id, 1)) {
-      badges.push({ user_id: user.user_id, badge_id: 1 });
-    }
-  }
-  
-  return await awardBadges(supabase, badges);
-}
-
-async function awardSpeedBadges(supabase: any): Promise<number> {
-  console.log("⚡ Checking speed badges");
-  
-  // Get users who solve tasks quickly
-  const { data: speedUsers } = await supabase
-    .from("attempts")
-    .select("user_id, AVG(time_spent_s) as avg_time")
-    .eq("is_correct", true)
-    .gte("ts", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-    .group("user_id")
-    .having("COUNT(*) >= 10 AND AVG(time_spent_s) < 60");
-
-  if (!speedUsers?.length) return 0;
-
-  const badges: BadgeAward[] = [];
-  
-  for (const user of speedUsers) {
-    if (!await hasBadge(supabase, user.user_id, 2)) {
-      badges.push({ user_id: user.user_id, badge_id: 2 });
-    }
-  }
-  
-  return await awardBadges(supabase, badges);
-}
-
-async function awardPerfectionistBadges(supabase: any): Promise<number> {
-  console.log("🎯 Checking perfectionist badges");
-  
-  // Get users with 20+ consecutive correct answers
-  const { data: perfectUsers } = await supabase.rpc("get_perfect_streaks", { min_streak: 20 });
-  
-  if (!perfectUsers?.length) return 0;
-  
-  const badges: BadgeAward[] = [];
-  
-  for (const user of perfectUsers) {
-    if (!await hasBadge(supabase, user.user_id, 3)) {
-      badges.push({ user_id: user.user_id, badge_id: 3 });
-    }
-  }
-  
-  return await awardBadges(supabase, badges);
-}
-
-async function awardTimeBadges(supabase: any): Promise<number> {
-  console.log("🌙 Checking time-based badges");
-  
-  let totalAwarded = 0;
-  
-  // Night owl badge (22:00-02:00)
-  const { data: nightOwls } = await supabase
-    .from("attempts")
-    .select("user_id, COUNT(*) as night_count")
-    .gte("ts", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-    .raw("WHERE EXTRACT(HOUR FROM ts) >= 22 OR EXTRACT(HOUR FROM ts) <= 2")
-    .group("user_id")
-    .having("COUNT(*) >= 20");
-  
-  if (nightOwls?.length) {
-    const badges: BadgeAward[] = [];
-    for (const user of nightOwls) {
-      if (!await hasBadge(supabase, user.user_id, 4)) {
-        badges.push({ user_id: user.user_id, badge_id: 4 });
-      }
-    }
-    totalAwarded += await awardBadges(supabase, badges);
-  }
-  
-  // Early bird badge (06:00-08:00)
-  const { data: earlyBirds } = await supabase
-    .from("attempts")
-    .select("user_id, COUNT(*) as morning_count")
-    .gte("ts", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-    .raw("WHERE EXTRACT(HOUR FROM ts) >= 6 AND EXTRACT(HOUR FROM ts) <= 8")
-    .group("user_id")
-    .having("COUNT(*) >= 20");
-  
-  if (earlyBirds?.length) {
-    const badges: BadgeAward[] = [];
-    for (const user of earlyBirds) {
-      if (!await hasBadge(supabase, user.user_id, 5)) {
-        badges.push({ user_id: user.user_id, badge_id: 5 });
-      }
-    }
-    totalAwarded += await awardBadges(supabase, badges);
-  }
-  
-  return totalAwarded;
-}
-
-async function awardMilestoneBadges(supabase: any): Promise<number> {
-  console.log("🏁 Checking milestone badges");
-  
-  let totalAwarded = 0;
-  
-  // First correct answer
-  const { data: firstTimers } = await supabase
-    .from("attempts")
-    .select("user_id")
-    .eq("is_correct", true)
-    .order("ts", { ascending: true })
-    .limit(1000);
-  
-  if (firstTimers?.length) {
-    const badges: BadgeAward[] = [];
-    for (const user of firstTimers) {
-      if (!await hasBadge(supabase, user.user_id, 9)) {
-        badges.push({ user_id: user.user_id, badge_id: 9 });
-      }
-    }
-    totalAwarded += await awardBadges(supabase, badges);
-  }
-  
-  // 100 tasks milestone
-  const { data: hundredUsers } = await supabase
-    .from("attempts")
-    .select("user_id, COUNT(*) as total_attempts")
-    .group("user_id")
-    .having("COUNT(*) >= 100");
-  
-  if (hundredUsers?.length) {
-    const badges: BadgeAward[] = [];
-    for (const user of hundredUsers) {
-      if (!await hasBadge(supabase, user.user_id, 8)) {
-        badges.push({ user_id: user.user_id, badge_id: 8 });
-      }
-    }
-    totalAwarded += await awardBadges(supabase, badges);
-  }
-  
-  return totalAwarded;
-}
-
-async function awardTopicMasterBadges(supabase: any): Promise<number> {
-  console.log("🎓 Checking topic master badges");
-  
-  // Get users who mastered a topic (>95% accuracy with 10+ attempts)
-  const { data: masters } = await supabase
-    .from("weak_topics")
-    .select("user_id, topic, error_rate, attempts_count")
-    .lt("error_rate", 0.05)
-    .gte("attempts_count", 10);
-  
-  if (!masters?.length) return 0;
-  
-  const badges: BadgeAward[] = [];
-  
-  for (const user of masters) {
-    if (!await hasBadge(supabase, user.user_id, 7)) {
-      badges.push({ user_id: user.user_id, badge_id: 7 });
-    }
-  }
-  
-  return await awardBadges(supabase, badges);
-}
-
-async function awardComebackBadges(supabase: any): Promise<number> {
-  console.log("🔄 Checking comeback badges");
-  
-  // Users who returned after 7+ days break
-  const { data: comebackUsers } = await supabase.rpc("get_comeback_users");
-  
-  if (!comebackUsers?.length) return 0;
-  
-  const badges: BadgeAward[] = [];
-  
-  for (const user of comebackUsers) {
-    if (!await hasBadge(supabase, user.user_id, 10)) {
-      badges.push({ user_id: user.user_id, badge_id: 10 });
-    }
-  }
-  
-  return await awardBadges(supabase, badges);
-}
-
 async function hasBadge(supabase: any, userId: string, badgeId: number): Promise<boolean> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("user_badges")
-    .select("id")
+    .select("user_id")
     .eq("user_id", userId)
     .eq("badge_id", badgeId)
     .limit(1);
+    
+  if (error) {
+      console.error(`Error checking for badge ${badgeId} for user ${userId}:`, error);
+      return true; // Assume badge exists to prevent re-awarding on error
+  }
   
   return data && data.length > 0;
 }
@@ -286,4 +97,159 @@ async function awardBadges(supabase: any, badges: BadgeAward[]): Promise<number>
   
   console.log(`🎉 Awarded ${badges.length} badges`);
   return badges.length;
+}
+
+
+async function awardStreakBadges(supabase: any): Promise<number> {
+  console.log("🔥 Checking streak badges");
+  const { data: streakData, error } = await supabase.rpc("get_user_streaks");
+  
+  if (error || !streakData?.length) return 0;
+  
+  const badges: BadgeAward[] = [];
+  
+  for (const user of streakData) {
+    if (user.streak >= 5 && !await hasBadge(supabase, user.user_id, 1)) {
+      badges.push({ user_id: user.user_id, badge_id: 1 });
+    }
+  }
+  
+  return await awardBadges(supabase, badges);
+}
+
+async function awardSpeedBadges(supabase: any): Promise<number> {
+  console.log("⚡ Checking speed badges");
+  const { data: speedUsers, error } = await supabase
+    .from("attempts")
+    .select("user_id, avg_time:time_spent_s.avg()")
+    .eq("is_correct", true)
+    .gte("ts", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+    .group("user_id")
+    .having("count", "gte", 10)
+    .having("avg_time", "lt", 60);
+
+  if (error || !speedUsers?.length) return 0;
+
+  const badges: BadgeAward[] = [];
+  
+  for (const user of speedUsers) {
+    if (!await hasBadge(supabase, user.user_id, 2)) {
+      badges.push({ user_id: user.user_id, badge_id: 2 });
+    }
+  }
+  
+  return await awardBadges(supabase, badges);
+}
+
+async function awardPerfectionistBadges(supabase: any): Promise<number> {
+    console.log("🎯 Checking perfectionist badges");
+    const { data: perfectUsers, error } = await supabase.rpc("get_perfect_streaks", { min_streak: 20 });
+  
+    if (error || !perfectUsers?.length) return 0;
+  
+    const badges: BadgeAward[] = [];
+  
+    for (const user of perfectUsers) {
+        if (!await hasBadge(supabase, user.user_id, 3)) {
+            badges.push({ user_id: user.user_id, badge_id: 3 });
+        }
+    }
+  
+    return await awardBadges(supabase, badges);
+}
+
+async function awardTimeBadges(supabase: any): Promise<number> {
+    console.log("🌙 Checking time-based badges");
+    let totalAwarded = 0;
+
+    // Night owl badge (22:00-02:00)
+    const { data: nightOwls } = await supabase.rpc('get_time_based_users', {start_hour: 22, end_hour: 2});
+    if (nightOwls?.length) {
+        const badges: BadgeAward[] = [];
+        for (const user of nightOwls) {
+            if (!await hasBadge(supabase, user.user_id, 4)) {
+                badges.push({ user_id: user.user_id, badge_id: 4 });
+            }
+        }
+        totalAwarded += await awardBadges(supabase, badges);
+    }
+
+    // Early bird badge (06:00-08:00)
+    const { data: earlyBirds } = await supabase.rpc('get_time_based_users', {start_hour: 6, end_hour: 8});
+    if (earlyBirds?.length) {
+        const badges: BadgeAward[] = [];
+        for (const user of earlyBirds) {
+            if (!await hasBadge(supabase, user.user_id, 5)) {
+                badges.push({ user_id: user.user_id, badge_id: 5 });
+            }
+        }
+        totalAwarded += await awardBadges(supabase, badges);
+    }
+
+    return totalAwarded;
+}
+
+async function awardMilestoneBadges(supabase: any): Promise<number> {
+    console.log("🏁 Checking milestone badges");
+    let totalAwarded = 0;
+
+    // First correct answer
+    const { data: firstTimers } = await supabase.rpc('get_first_correct_users');
+    if (firstTimers?.length) {
+        const badges: BadgeAward[] = [];
+        for (const user of firstTimers) {
+            if (!await hasBadge(supabase, user.user_id, 9)) {
+                badges.push({ user_id: user.user_id, badge_id: 9 });
+            }
+        }
+        totalAwarded += await awardBadges(supabase, badges);
+    }
+
+    // 100 tasks milestone
+    const { data: hundredUsers } = await supabase.rpc('get_milestone_users', {min_attempts: 100});
+    if (hundredUsers?.length) {
+        const badges: BadgeAward[] = [];
+        for (const user of hundredUsers) {
+            if (!await hasBadge(supabase, user.user_id, 8)) {
+                badges.push({ user_id: user.user_id, badge_id: 8 });
+            }
+        }
+        totalAwarded += await awardBadges(supabase, badges);
+    }
+
+    return totalAwarded;
+}
+
+async function awardTopicMasterBadges(supabase: any): Promise<number> {
+    console.log("🎓 Checking topic master badges");
+    const { data: masters, error } = await supabase
+        .from("weak_topics")
+        .select("user_id")
+        .lt("error_rate", 0.05)
+        .gte("attempts_count", 10);
+
+    if (error || !masters?.length) return 0;
+
+    const badges: BadgeAward[] = [];
+    for (const user of masters) {
+        if (!await hasBadge(supabase, user.user_id, 7)) {
+            badges.push({ user_id: user.user_id, badge_id: 7 });
+        }
+    }
+    return await awardBadges(supabase, badges);
+}
+
+async function awardComebackBadges(supabase: any): Promise<number> {
+    console.log("🔄 Checking comeback badges");
+    const { data: comebackUsers, error } = await supabase.rpc("get_comeback_users");
+
+    if (error || !comebackUsers?.length) return 0;
+
+    const badges: BadgeAward[] = [];
+    for (const user of comebackUsers) {
+        if (!await hasBadge(supabase, user.user_id, 10)) {
+            badges.push({ user_id: user.user_id, badge_id: 10 });
+        }
+    }
+    return await awardBadges(supabase, badges);
 }

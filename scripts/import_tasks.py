@@ -9,6 +9,7 @@ import re
 import yaml
 from pathlib import Path
 from typing import Optional, Dict, Any
+import sys
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
@@ -221,8 +222,6 @@ $$x = \\frac{\\pi}{4} + 2\\pi k$$
     print("Use this as a template for creating new task files.")
 
 if __name__ == "__main__":
-    import sys
-    
     if len(sys.argv) > 1 and sys.argv[1] == "--create-example":
         create_example_task_file()
     else:
