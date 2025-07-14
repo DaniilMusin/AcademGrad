@@ -4,154 +4,148 @@ import { useState, useEffect } from 'react';
 import { X, Download, Smartphone, Monitor } from 'lucide-react';
 
 interface BeforeInstallPromptEvent extends Event {
-  readonly platforms: string[];
-  readonly userChoice: Promise<{
-    outcome: 'accepted' | 'dismissed';
-    platform: string;
-  }>;
   prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 }
 
 export default function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
-    // Check if app is already installed
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setIsInstalled(true);
-      return;
-    }
+    // Check if running as standalone PWA
+    const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches ||
+                            (window.navigator as any).standalone ||
+                            document.referrer.includes('android-app://');
+    setIsStandalone(isStandaloneMode);
+
+    // Check if iOS
+    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    setIsIOS(iOS);
 
     // Listen for beforeinstallprompt event
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       
-      // Show custom prompt after 30 seconds or on user interaction
+      // Don't show immediately, wait a bit for user engagement
       setTimeout(() => {
-        if (!localStorage.getItem('pwa-prompt-dismissed')) {
+        const hasShownPrompt = localStorage.getItem('pwa-install-prompt-shown');
+        if (!hasShownPrompt && !isStandaloneMode) {
           setShowPrompt(true);
         }
-      }, 30000);
-    };
-
-    // Listen for app installed event
-    const handleAppInstalled = () => {
-      setIsInstalled(true);
-      setShowPrompt(false);
-      setDeferredPrompt(null);
+      }, 30000); // Show after 30 seconds
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
+
+    // For iOS, show custom prompt after some engagement
+    if (iOS && !isStandaloneMode) {
+      const hasShownIOSPrompt = localStorage.getItem('pwa-ios-prompt-shown');
+      if (!hasShownIOSPrompt) {
+        setTimeout(() => setShowPrompt(true), 45000); // Show after 45 seconds on iOS
+      }
+    }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
 
-  const handleInstall = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      
-      const { outcome } = await deferredPrompt.userChoice;
-      
-      if (outcome === 'accepted') {
-        console.log('PWA installed');
-      }
-      
-      setDeferredPrompt(null);
-      setShowPrompt(false);
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) {
+      // iOS fallback - show instructions
+      setShowPrompt(true);
+      return;
     }
+
+    setShowPrompt(false);
+    deferredPrompt.prompt();
+
+    const { outcome } = await deferredPrompt.userChoice;
+    
+    if (outcome === 'accepted') {
+      console.log('PWA install accepted');
+    } else {
+      console.log('PWA install dismissed');
+    }
+
+    setDeferredPrompt(null);
+    localStorage.setItem('pwa-install-prompt-shown', 'true');
   };
 
   const handleDismiss = () => {
     setShowPrompt(false);
-    localStorage.setItem('pwa-prompt-dismissed', 'true');
+    localStorage.setItem(isIOS ? 'pwa-ios-prompt-shown' : 'pwa-install-prompt-shown', 'true');
   };
 
-  const handleShowAgain = () => {
-    localStorage.removeItem('pwa-prompt-dismissed');
-    if (deferredPrompt) {
-      setShowPrompt(true);
-    }
-  };
-
-  // Show install button in UI for manual trigger
-  if (isInstalled) {
-    return null;
-  }
-
-  if (!showPrompt && deferredPrompt) {
-    return (
-      <button
-        onClick={handleShowAgain}
-        className="fixed bottom-4 right-4 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-colors z-50"
-        title="Установить приложение"
-      >
-        <Download className="w-5 h-5" />
-      </button>
-    );
-  }
-
-  if (!showPrompt || !deferredPrompt) {
+  if (isStandalone || !showPrompt) {
     return null;
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 relative">
+    <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 p-4">
         <button
           onClick={handleDismiss}
-          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+          className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
         >
-          <X className="w-5 h-5" />
+          <X size={20} />
         </button>
-        
-        <div className="flex items-center mb-4">
-          <div className="bg-blue-100 rounded-full p-3 mr-4">
-            <Smartphone className="w-6 h-6 text-blue-600" />
+
+        <div className="flex items-start space-x-3">
+          <div className="flex-shrink-0">
+            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+              <Smartphone className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            </div>
           </div>
-          <h3 className="text-lg font-semibold text-gray-900">
-            Установить AcademGrad
-          </h3>
-        </div>
-        
-        <p className="text-gray-600 mb-6">
-          Установите приложение на ваше устройство для быстрого доступа и работы в оффлайн режиме.
-        </p>
-        
-        <div className="space-y-3 mb-6">
-          <div className="flex items-center text-sm text-gray-600">
-            <Monitor className="w-4 h-4 mr-2" />
-            Работает без интернета
+
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Установить AcademGrad
+            </h3>
+            
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+              Установите приложение для быстрого доступа к задачам ЕГЭ, работы офлайн и получения уведомлений.
+            </p>
+
+            {isIOS ? (
+              <div className="space-y-2 mb-4">
+                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                  Для установки на iOS:
+                </p>
+                <ol className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
+                  <li>1. Нажмите кнопку "Поделиться" <span className="inline-block">📤</span></li>
+                  <li>2. Выберите "На экран «Домой»"</li>
+                  <li>3. Нажмите "Добавить"</li>
+                </ol>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2 mb-4">
+                <Download className="w-4 h-4 text-green-600" />
+                <span className="text-sm text-green-600 dark:text-green-400 font-medium">
+                  Доступна быстрая установка
+                </span>
+              </div>
+            )}
+
+            <div className="flex space-x-2">
+              <button
+                onClick={handleInstallClick}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors"
+              >
+                {isIOS ? 'Показать инструкции' : 'Установить'}
+              </button>
+              <button
+                onClick={handleDismiss}
+                className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white transition-colors"
+              >
+                Позже
+              </button>
+            </div>
           </div>
-          <div className="flex items-center text-sm text-gray-600">
-            <Download className="w-4 h-4 mr-2" />
-            Быстрый запуск с рабочего стола
-          </div>
-          <div className="flex items-center text-sm text-gray-600">
-            <Smartphone className="w-4 h-4 mr-2" />
-            Push-уведомления о новых задачах
-          </div>
-        </div>
-        
-        <div className="flex space-x-3">
-          <button
-            onClick={handleInstall}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-medium transition-colors"
-          >
-            Установить
-          </button>
-          <button
-            onClick={handleDismiss}
-            className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-medium transition-colors"
-          >
-            Не сейчас
-          </button>
         </div>
       </div>
     </div>

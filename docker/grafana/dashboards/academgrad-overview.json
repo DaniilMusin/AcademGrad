@@ -1,0 +1,267 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "AcademGrad Overview",
+    "description": "Main dashboard for AcademGrad application monitoring",
+    "tags": ["academgrad", "overview"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Active Users (24h)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "academgrad_users_active_24h",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 10},
+                {"color": "green", "value": 50}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Total Users",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "academgrad_users_total",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "value"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "blue", "value": 0}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Active Subscriptions",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "academgrad_subscriptions_active",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 5},
+                {"color": "green", "value": 20}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0}
+      },
+      {
+        "id": 4,
+        "title": "Revenue (30d) RUB",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "academgrad_revenue_30d_rubles",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "value"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0}
+              ]
+            },
+            "unit": "currencyRUB"
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+      },
+      {
+        "id": 5,
+        "title": "Tasks Solved",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "academgrad_tasks_solved_today",
+            "refId": "A",
+            "legendFormat": "Today"
+          },
+          {
+            "expr": "academgrad_tasks_solved_week",
+            "refId": "B",
+            "legendFormat": "This Week"
+          }
+        ],
+        "gridPos": {"h": 9, "w": 12, "x": 0, "y": 8},
+        "yAxes": [
+          {"label": "Tasks", "min": 0}
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Accuracy Rate",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "academgrad_accuracy_rate_percent",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 100,
+            "unit": "percent",
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 50},
+                {"color": "green", "value": 80}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 9, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 7,
+        "title": "System Memory Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "academgrad_memory_used_bytes",
+            "refId": "A",
+            "legendFormat": "Used"
+          },
+          {
+            "expr": "academgrad_memory_total_bytes",
+            "refId": "B",
+            "legendFormat": "Total"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 17}
+      },
+      {
+        "id": 8,
+        "title": "Error Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(academgrad_errors_1h[5m])",
+            "refId": "A",
+            "legendFormat": "Errors per second"
+          }
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [5],
+                "type": "gt"
+              },
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "for": "5m",
+          "frequency": "10s",
+          "handler": 1,
+          "name": "High Error Rate",
+          "noDataState": "no_data",
+          "notifications": []
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 17}
+      },
+      {
+        "id": 9,
+        "title": "Application Uptime",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "academgrad_uptime_seconds",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "color": {
+              "mode": "value"
+            }
+          }
+        },
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 25}
+      },
+      {
+        "id": 10,
+        "title": "Metrics Generation Time",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "academgrad_metrics_generation_ms",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms",
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 100},
+                {"color": "red", "value": 500}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 25}
+      }
+    ],
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "",
+    "version": 1
+  }
+}
