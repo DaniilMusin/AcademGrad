@@ -1,0 +1,63 @@
+name: Deploy Edge Functions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/edge-functions/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/edge-functions/**'
+  workflow_dispatch:
+
+env:
+  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+  SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link to Supabase Project
+        run: |
+          supabase link --project-ref $SUPABASE_PROJECT_ID
+
+      - name: Deploy Edge Functions
+        run: |
+          supabase functions deploy --no-verify-jwt
+        
+      - name: Deploy specific functions with verification
+        run: |
+          # Deploy functions that need JWT verification
+          supabase functions deploy payment --verify-jwt
+          supabase functions deploy weekly-report --verify-jwt
+          supabase functions deploy chat-task --verify-jwt
+          
+      - name: Test Edge Functions
+        run: |
+          # Basic health check for deployed functions
+          echo "Testing Edge Functions deployment..."
+          curl -f "${SUPABASE_URL}/functions/v1/badge-cron" -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" || echo "badge-cron health check failed"
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+
+      - name: Notify Deployment Status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Edge Functions deployed successfully"
+          else
+            echo "❌ Edge Functions deployment failed"
+            exit 1
+          fi
