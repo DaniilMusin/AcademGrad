@@ -54,7 +54,7 @@
    supabase db reset
    ```
 
-4. **Импорт задач и создание эмбеддингов**
+4. **Импорт задач и создание demo данных**
    ```bash
    # Создайте папку tasks с markdown файлами
    mkdir tasks
@@ -66,8 +66,14 @@
    # Импорт задач
    python scripts/import_tasks.py
    
-   # Создание эмбеддингов
+   # Создание эмбеддингов для задач
    python scripts/embed_chunks.py
+   
+   # Генерация demo репетиторов с embeddings
+   python scripts/generate_demo_tutors.py
+   
+   # Проверка консистентности embeddings
+   python scripts/generate_demo_tutors.py --validate
    ```
 
 5. **Запуск приложения**
@@ -90,6 +96,7 @@
 ├── scripts/                # Python скрипты
 │   ├── import_tasks.py     # Импорт задач из Markdown
 │   ├── embed_chunks.py     # Создание эмбеддингов
+│   ├── generate_demo_tutors.py # Создание demo репетиторов с AI
 │   ├── spaced_repetition.py # Планирование повторений
 │   └── generate_pdf.py     # Генерация PDF отчетов
 ├── .github/workflows/      # GitHub Actions
@@ -140,6 +147,11 @@ supabase functions serve chat-task
 curl -X POST http://localhost:54321/functions/v1/chat-task \
   -H "Content-Type: application/json" \
   -d '{"task_id": 1, "question": "Как решить эту задачу?"}'
+
+# Тест AI-подбора репетиторов
+curl -X POST http://localhost:54321/functions/v1/match-tutors \
+  -H "Content-Type: application/json" \
+  -d '{"requirements": "Нужен опытный преподаватель математики для подготовки к ЕГЭ", "subject": "математика", "max_results": 3}'
 
 # Тест логирования попыток
 curl -X POST http://localhost:54321/functions/v1/log-attempt \
