@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AcademGrad - Дашборд</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-50 p-6">
+    <div class="max-w-7xl mx-auto">
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
+            <p class="text-gray-600">Track your progress and achievements</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="flex items-center">
+                    <div class="p-3 bg-blue-100 rounded-full">
+                        <span class="text-2xl">📚</span>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-600">Tasks Solved</p>
+                        <p class="text-2xl font-bold text-gray-900">45</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="flex items-center">
+                    <div class="p-3 bg-red-100 rounded-full">
+                        <span class="text-2xl">🔥</span>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-600">Current Streak</p>
+                        <p class="text-2xl font-bold text-gray-900">7</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="flex items-center">
+                    <div class="p-3 bg-purple-100 rounded-full">
+                        <span class="text-2xl">⭐</span>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-600">Total XP</p>
+                        <p class="text-2xl font-bold text-gray-900">1250</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="flex items-center">
+                    <div class="p-3 bg-green-100 rounded-full">
+                        <span class="text-2xl">🏆</span>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-600">Badges</p>
+                        <p class="text-2xl font-bold text-gray-900">2/4</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <button class="p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors text-left">
+                    <div class="flex items-center">
+                        <span class="text-2xl mr-3">📚</span>
+                        <div>
+                            <p class="font-medium text-gray-900">Start Learning</p>
+                            <p class="text-sm text-gray-600">Continue your progress</p>
+                        </div>
+                    </div>
+                </button>
+                
+                <button class="p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors text-left">
+                    <div class="flex items-center">
+                        <span class="text-2xl mr-3">📅</span>
+                        <div>
+                            <p class="font-medium text-gray-900">View Schedule</p>
+                            <p class="text-sm text-gray-600">Check your study plan</p>
+                        </div>
+                    </div>
+                </button>
+                
+                <button class="p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors text-left">
+                    <div class="flex items-center">
+                        <span class="text-2xl mr-3">📊</span>
+                        <div>
+                            <p class="font-medium text-gray-900">View Analytics</p>
+                            <p class="text-sm text-gray-600">Track your performance</p>
+                        </div>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
