@@ -213,10 +213,10 @@ async function handleYuKassaWebhook(req: Request, supabase: any) {
 }
 
 async function createYuKassaPayment(priceId: string, userId: string) {
-  const YUKASSA_SHOP_ID = Deno.env.get("YUKASSA_SHOP_ID");
-  const YUKASSA_SECRET_KEY = Deno.env.get("YUKASSA_SECRET_KEY");
+  const YOOKASSA_SHOP_ID = Deno.env.get("YOOKASSA_SHOP_ID");
+  const YOOKASSA_SECRET_KEY = Deno.env.get("YOOKASSA_SECRET_KEY");
   
-  if (!YUKASSA_SHOP_ID || !YUKASSA_SECRET_KEY) {
+  if (!YOOKASSA_SHOP_ID || !YOOKASSA_SECRET_KEY) {
     throw new Error("YuKassa credentials not configured");
   }
 
@@ -236,7 +236,7 @@ async function createYuKassaPayment(priceId: string, userId: string) {
   const response = await fetch("https://api.yookassa.ru/v3/payments", {
     method: "POST",
     headers: {
-      "Authorization": `Basic ${btoa(`${YUKASSA_SHOP_ID}:${YUKASSA_SECRET_KEY}`)}`,
+      "Authorization": `Basic ${btoa(`${YOOKASSA_SHOP_ID}:${YOOKASSA_SECRET_KEY}`)}`,
       "Content-Type": "application/json",
       "Idempotence-Key": idempotenceKey,
     },
@@ -270,7 +270,7 @@ function verifyYuKassaWebhook(req: Request, body: string): boolean {
   // YuKassa webhook verification
   // In production, you should verify the request signature
   const signature = req.headers.get("X-YooKassa-Signature");
-  const secret = Deno.env.get("YUKASSA_WEBHOOK_SECRET");
+  const secret = Deno.env.get("YOOKASSA_WEBHOOK_SECRET");
   
   if (!signature || !secret) {
     return false;
