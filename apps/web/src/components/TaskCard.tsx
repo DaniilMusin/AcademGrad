@@ -18,7 +18,7 @@ export default function TaskCard({ task }: Props) {
       <h2>{`Задача №${task.id} (${task.topic})`}</h2>
       <Markdown
         remarkPlugins={[remarkMath]}
-        rehypePlugins={[rehypeKatex]}
+        rehypePlugins={[rehypeKatex()]}
         components={{
           p: (props) => <p className="whitespace-pre-wrap">{props.children}</p>,
         }}

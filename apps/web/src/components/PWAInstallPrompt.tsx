@@ -117,9 +117,9 @@ export default function PWAInstallPrompt() {
                   Для установки на iOS:
                 </p>
                 <ol className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
-                  <li>1. Нажмите кнопку "Поделиться" <span className="inline-block">📤</span></li>
-                  <li>2. Выберите "На экран «Домой»"</li>
-                  <li>3. Нажмите "Добавить"</li>
+                                  <li>1. Нажмите кнопку &quot;Поделиться&quot; <span className="inline-block">📤</span></li>
+                <li>2. Выберите &quot;На экран «Домой»&quot;</li>
+                <li>3. Нажмите &quot;Добавить&quot;</li>
                 </ol>
               </div>
             ) : (

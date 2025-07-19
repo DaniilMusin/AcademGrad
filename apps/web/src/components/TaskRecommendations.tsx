@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
 
 interface TaskRecommendation {
@@ -25,11 +25,7 @@ export default function TaskRecommendations({ limit = 10 }: TaskRecommendationsP
   const [selectedTask, setSelectedTask] = useState<TaskRecommendation | null>(null);
   const supabase = createClient();
 
-  useEffect(() => {
-    loadRecommendations();
-  }, [limit]);
-
-  const loadRecommendations = async () => {
+  const loadRecommendations = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -51,7 +47,11 @@ export default function TaskRecommendations({ limit = 10 }: TaskRecommendationsP
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [supabase, limit]);
+
+  useEffect(() => {
+    loadRecommendations();
+  }, [limit, loadRecommendations]);
 
   const getPriorityColor = (bucket: string) => {
     switch (bucket) {

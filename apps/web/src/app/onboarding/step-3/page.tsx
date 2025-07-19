@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import OnboardingWizard from '@/components/OnboardingWizard';
 import { createClient } from '@/lib/supabase';
 
@@ -11,17 +11,22 @@ interface TimeSlot {
   selected: boolean;
 }
 
+interface UserEvent {
+  id: number;
+  start_time: string;
+  end_time: string;
+  title: string;
+  event_type: string;
+  is_draft: boolean;
+}
+
 export default function Step3() {
   const [selectedSlots, setSelectedSlots] = useState<TimeSlot[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showGoogleCalendar, setShowGoogleCalendar] = useState(false);
   const supabase = createClient();
 
-  useEffect(() => {
-    loadCurrentSchedule();
-  }, []);
-
-  const loadCurrentSchedule = async () => {
+  const loadCurrentSchedule = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -32,7 +37,7 @@ export default function Step3() {
           .eq('is_draft', true);
         
         if (events) {
-          const slots = events.map(event => ({
+          const slots = events.map((event: UserEvent) => ({
             id: event.id.toString(),
             day: new Date(event.start_time).toLocaleDateString('ru-RU', { weekday: 'long' }),
             time: new Date(event.start_time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
@@ -44,7 +49,11 @@ export default function Step3() {
     } catch (error) {
       console.error('Error loading schedule:', error);
     }
-  };
+  }, [supabase]);
+
+  useEffect(() => {
+    loadCurrentSchedule();
+  }, [loadCurrentSchedule]);
 
   const days = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
   const timeSlots = ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];

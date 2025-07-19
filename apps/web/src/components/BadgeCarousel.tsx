@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Badge {
@@ -126,7 +126,7 @@ export default function BadgeCarousel({
               className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white shadow-lg rounded-full p-2 hover:bg-gray-50 transition-colors z-10"
               aria-label="Previous badge"
             >
-              <ChevronLeftIcon className="w-5 h-5 text-gray-600" />
+              <ChevronLeft className="w-5 h-5 text-gray-600" />
             </button>
             
             <button
@@ -134,7 +134,7 @@ export default function BadgeCarousel({
               className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white shadow-lg rounded-full p-2 hover:bg-gray-50 transition-colors z-10"
               aria-label="Next badge"
             >
-              <ChevronRightIcon className="w-5 h-5 text-gray-600" />
+              <ChevronRight className="w-5 h-5 text-gray-600" />
             </button>
           </>
         )}

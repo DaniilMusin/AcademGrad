@@ -244,7 +244,7 @@ export function PWAInstallPrompt() {
                     <span className="text-blue-600 text-sm">1</span>
                   </div>
                   <p className="text-sm text-gray-700">
-                    Нажмите кнопку "Поделиться" <span className="inline-block">📤</span> внизу экрана
+                    Нажмите кнопку &quot;Поделиться&quot; <span className="inline-block">📤</span> внизу экрана
                   </p>
                 </div>
                 
@@ -253,7 +253,7 @@ export function PWAInstallPrompt() {
                     <span className="text-blue-600 text-sm">2</span>
                   </div>
                   <p className="text-sm text-gray-700">
-                    Прокрутите вниз и выберите "На экран «Домой»" <span className="inline-block">➕</span>
+                    Прокрутите вниз и выберите &quot;На экран «Домой»&quot; <span className="inline-block">➕</span>
                   </p>
                 </div>
                 
@@ -262,7 +262,7 @@ export function PWAInstallPrompt() {
                     <span className="text-blue-600 text-sm">3</span>
                   </div>
                   <p className="text-sm text-gray-700">
-                    Нажмите "Добавить" в правом верхнем углу
+                    Нажмите &quot;Добавить&quot; в правом верхнем углу
                   </p>
                 </div>
               </div>
