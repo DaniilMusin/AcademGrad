@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
 
+const supabase = createClient();
+
 interface LeaderboardEntry {
   user_id: string;
   email: string;
@@ -24,7 +26,6 @@ export default function Leaderboard({ type = 'xp', limit = 10, groupId }: Leader
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const supabase = createClient();
 
   const getCurrentUser = useCallback(async () => {
     try {
@@ -33,7 +34,7 @@ export default function Leaderboard({ type = 'xp', limit = 10, groupId }: Leader
     } catch (error) {
       console.error('Error getting current user:', error);
     }
-  }, [supabase]);
+  }, []);
 
   const loadLeaderboard = useCallback(async () => {
     try {
@@ -70,7 +71,7 @@ export default function Leaderboard({ type = 'xp', limit = 10, groupId }: Leader
     } finally {
       setIsLoading(false);
     }
-  }, [supabase, groupId, type, limit]);
+  }, [groupId, type, limit]);
 
   useEffect(() => {
     loadLeaderboard();

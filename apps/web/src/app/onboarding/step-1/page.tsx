@@ -4,10 +4,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import OnboardingWizard from '@/components/OnboardingWizard';
 import { createClient } from '@/lib/supabase';
 
+const supabase = createClient();
+
 export default function Step1() {
-  const [selectedScore, setSelectedScore] = useState<number | null>(null);
+  const [goalScore, setGoalScore] = useState<number>(80);
   const [isLoading, setIsLoading] = useState(false);
-  const supabase = createClient();
 
   const loadCurrentPreferences = useCallback(async () => {
     try {
@@ -20,20 +21,20 @@ export default function Step1() {
           .single();
         
         if (preferences?.goal_score) {
-          setSelectedScore(preferences.goal_score);
+          setGoalScore(preferences.goal_score);
         }
       }
     } catch (error) {
       console.error('Error loading preferences:', error);
     }
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     loadCurrentPreferences();
   }, [loadCurrentPreferences]);
 
   const handleScoreSelect = async (score: number) => {
-    setSelectedScore(score);
+    setGoalScore(score);
     setIsLoading(true);
     
     try {
@@ -86,13 +87,13 @@ export default function Step1() {
             <div
               key={option.score}
               className={`relative p-6 rounded-xl border-2 cursor-pointer transition-all duration-200 hover:shadow-lg ${
-                selectedScore === option.score
+                goalScore === option.score
                   ? 'border-blue-500 bg-blue-50 shadow-md'
                   : 'border-gray-200 hover:border-gray-300'
               }`}
               onClick={() => handleScoreSelect(option.score)}
             >
-              {selectedScore === option.score && (
+              {goalScore === option.score && (
                 <div className="absolute -top-2 -right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
                   <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -114,7 +115,7 @@ export default function Step1() {
           ))}
         </div>
 
-        {selectedScore && (
+        {goalScore && (
           <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-center">
               <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center mr-3">
@@ -125,7 +126,7 @@ export default function Step1() {
               <div>
                 <h4 className="font-semibold text-blue-800">Цель установлена!</h4>
                 <p className="text-sm text-blue-700">
-                  Мы подберем задания и составим план для достижения {selectedScore}+ баллов
+                  Мы подберем задания и составим план для достижения {goalScore}+ баллов
                 </p>
               </div>
             </div>

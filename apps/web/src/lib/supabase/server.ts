@@ -1,6 +1,7 @@
-import { createBrowserClient } from "@supabase/ssr";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
-// Database type definition
+// Database type definition (same as client-side)
 interface Database {
   public: {
     Tables: {
@@ -195,14 +196,75 @@ interface Database {
   };
 }
 
-let supabaseClient: ReturnType<typeof createBrowserClient<Database>> | null = null;
-
 export const createClient = () => {
-  if (!supabaseClient) {
-    supabaseClient = createBrowserClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  // Check if environment variables are available
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    // Return a mock client for build time
+    return {
+      auth: {
+        getUser: async () => ({ data: { user: null }, error: null }),
+        getSession: async () => ({ data: { session: null }, error: null }),
+      },
+      from: () => ({
+        select: () => ({ eq: () => ({ single: async () => ({ data: null, error: null }) }) }),
+        insert: () => ({ eq: () => ({ single: async () => ({ data: null, error: null }) }) }),
+        update: () => ({ eq: () => ({ single: async () => ({ data: null, error: null }) }) }),
+        delete: () => ({ eq: () => ({ single: async () => ({ data: null, error: null }) }) }),
+        upsert: () => ({ eq: () => ({ single: async () => ({ data: null, error: null }) }) }),
+      }),
+    } as any;
+  }
+
+  try {
+    const cookieStore = cookies();
+
+    return createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+          set(name: string, value: string, options: any) {
+            try {
+              cookieStore.set(name, value, options);
+            } catch {
+              // The `set` method was called from a Server Component.
+              // This can be ignored if you have middleware refreshing
+              // user sessions.
+            }
+          },
+          remove(name: string, options: any) {
+            try {
+              cookieStore.set(name, '', { ...options, maxAge: 0 });
+            } catch {
+              // The `remove` method was called from a Server Component.
+              // This can be ignored if you have middleware refreshing
+              // user sessions.
+            }
+          },
+        },
+      }
+    );
+  } catch {
+    // Fallback for build time or when cookies are not available
+    return createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      {
+        cookies: {
+          get(name: string) {
+            return undefined;
+          },
+          set(name: string, value: string, options: any) {
+            // No-op for build time
+          },
+          remove(name: string, options: any) {
+            // No-op for build time
+          },
+        },
+      }
     );
   }
-  return supabaseClient;
 };

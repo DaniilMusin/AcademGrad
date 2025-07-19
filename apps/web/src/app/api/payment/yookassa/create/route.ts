@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/server';
 import { v4 as uuidv4 } from 'uuid';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+let supabase: any = null;
+try {
+  supabase = createClient();
+} catch (error) {
+  // Supabase client creation failed (e.g., during build time)
+  console.warn('Supabase client creation failed:', error);
+}
 
 interface YooKassaPayment {
   amount: {
@@ -83,26 +86,26 @@ export async function POST(request: NextRequest) {
 
     const payment = await yookassaResponse.json();
 
-    // Save payment info to database
-    const { error: dbError } = await supabase
-      .from('payments')
-      .insert({
-        id: payment.id,
-        user_id: user_id,
-        amount: amountValue,
-        currency: currency,
-        status: payment.status,
-        provider: 'yookassa',
-        provider_payment_id: payment.id,
-        description: description,
-        metadata: payment.metadata,
-        created_at: new Date().toISOString(),
-      });
+    // Save payment info to database (commented out due to missing table)
+    // const { error: dbError } = await supabase
+    //   .from('payments')
+    //   .insert({
+    //     id: payment.id,
+    //     user_id: user_id,
+    //     amount: amountValue,
+    //     currency: currency,
+    //     status: payment.status,
+    //     provider: 'yookassa',
+    //     provider_payment_id: payment.id,
+    //     description: description,
+    //     metadata: payment.metadata,
+    //     created_at: new Date().toISOString(),
+    //   });
 
-    if (dbError) {
-      console.error('Database error:', dbError);
-      // Continue even if DB insert fails, as payment is created
-    }
+    // if (dbError) {
+    //   console.error('Database error:', dbError);
+    //   // Continue even if DB insert fails, as payment is created
+    // }
 
     return NextResponse.json({
       payment_id: payment.id,

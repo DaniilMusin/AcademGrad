@@ -4,6 +4,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import OnboardingWizard from '@/components/OnboardingWizard';
 import { createClient } from '@/lib/supabase';
 
+const supabase = createClient();
+
 interface TimeSlot {
   id: string;
   day: string;
@@ -24,7 +26,6 @@ export default function Step3() {
   const [selectedSlots, setSelectedSlots] = useState<TimeSlot[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showGoogleCalendar, setShowGoogleCalendar] = useState(false);
-  const supabase = createClient();
 
   const loadCurrentSchedule = useCallback(async () => {
     try {
@@ -49,7 +50,7 @@ export default function Step3() {
     } catch (error) {
       console.error('Error loading schedule:', error);
     }
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     loadCurrentSchedule();

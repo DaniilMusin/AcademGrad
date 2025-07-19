@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
+import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 
 interface OnboardingWizardProps {
   currentStep: number;
