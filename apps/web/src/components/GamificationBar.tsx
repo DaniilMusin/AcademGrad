@@ -76,7 +76,7 @@ export default function GamificationBar({ userId }: GamificationBarProps) {
           .order('given_at', { ascending: false });
         
         if (data) {
-          setBadges(data.map((item: BadgeItem) => item.badges as Badge));
+          setBadges(data.map((item: any) => item.badges));
         }
       }
     } catch (error) {
