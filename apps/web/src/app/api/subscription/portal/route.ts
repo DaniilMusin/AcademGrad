@@ -5,7 +5,7 @@ import Stripe from 'stripe';
 let stripe: any = null;
 try {
   stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2025-06-30.basil',
+    apiVersion: '2024-06-20' as any,
   });
 } catch (error) {
   // Stripe initialization failed (e.g., during build time)
@@ -35,6 +35,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Database connection failed' },
+        { status: 500 }
+      );
+    }
+
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
     if (authError || !user) {
@@ -60,6 +67,13 @@ export async function POST(request: NextRequest) {
 
     // Mock customer for now
     const customer = { stripe_customer_id: 'cus_mock_customer_id' };
+
+    if (!stripe) {
+      return NextResponse.json(
+        { error: 'Payment service unavailable' },
+        { status: 500 }
+      );
+    }
 
     // Create Stripe billing portal session
     const portalSession = await stripe.billingPortal.sessions.create({

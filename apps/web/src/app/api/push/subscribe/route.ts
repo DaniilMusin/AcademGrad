@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     const token = authHeader?.replace('Bearer ', '');
     
     let userId = null;
-    if (token) {
+    if (token && supabase) {
       const { data: { user } } = await supabase.auth.getUser(token);
       userId = user?.id;
     }
