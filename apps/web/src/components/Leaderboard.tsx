@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
 
 interface LeaderboardEntry {
@@ -26,21 +26,16 @@ export default function Leaderboard({ type = 'xp', limit = 10, groupId }: Leader
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const supabase = createClient();
 
-  useEffect(() => {
-    loadLeaderboard();
-    getCurrentUser();
-  }, [type, limit, groupId]);
-
-  const getCurrentUser = async () => {
+  const getCurrentUser = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUserId(user?.id || null);
     } catch (error) {
       console.error('Error getting current user:', error);
     }
-  };
+  }, [supabase]);
 
-  const loadLeaderboard = async () => {
+  const loadLeaderboard = useCallback(async () => {
     try {
       setIsLoading(true);
       let query;
@@ -75,7 +70,12 @@ export default function Leaderboard({ type = 'xp', limit = 10, groupId }: Leader
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [supabase, groupId, type, limit]);
+
+  useEffect(() => {
+    loadLeaderboard();
+    getCurrentUser();
+  }, [type, limit, groupId, loadLeaderboard, getCurrentUser]);
 
   const getRankIcon = (rank: number) => {
     switch (rank) {

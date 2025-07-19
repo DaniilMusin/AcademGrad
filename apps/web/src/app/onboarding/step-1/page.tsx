@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import OnboardingWizard from '@/components/OnboardingWizard';
 import { createClient } from '@/lib/supabase';
 
@@ -9,11 +9,7 @@ export default function Step1() {
   const [isLoading, setIsLoading] = useState(false);
   const supabase = createClient();
 
-  useEffect(() => {
-    loadCurrentPreferences();
-  }, []);
-
-  const loadCurrentPreferences = async () => {
+  const loadCurrentPreferences = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -30,7 +26,11 @@ export default function Step1() {
     } catch (error) {
       console.error('Error loading preferences:', error);
     }
-  };
+  }, [supabase]);
+
+  useEffect(() => {
+    loadCurrentPreferences();
+  }, [loadCurrentPreferences]);
 
   const handleScoreSelect = async (score: number) => {
     setSelectedScore(score);

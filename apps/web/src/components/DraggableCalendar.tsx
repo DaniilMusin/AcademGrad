@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { format, startOfWeek, addDays, isSameDay, startOfDay, endOfDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
 

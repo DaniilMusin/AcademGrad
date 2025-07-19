@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { format, startOfWeek, addDays, isSameDay, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Clock, BookOpen } from 'lucide-react';
@@ -79,7 +79,7 @@ export default function DragDropCalendar({
     });
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!draggedEvent || !calendarRef.current) return;
 
     const calendarRect = calendarRef.current.getBoundingClientRect();
@@ -100,9 +100,9 @@ export default function DragDropCalendar({
     } else {
       setDropTarget(null);
     }
-  };
+  }, [draggedEvent, weekDays]);
 
-  const handleMouseUp = () => {
+  const handleMouseUp = useCallback(() => {
     if (draggedEvent && dropTarget) {
       const duration = draggedEvent.end.getTime() - draggedEvent.start.getTime();
       const newStart = new Date(dropTarget.day);
@@ -115,7 +115,7 @@ export default function DragDropCalendar({
     setDraggedEvent(null);
     setDropTarget(null);
     setDragOffset({ x: 0, y: 0 });
-  };
+  }, [draggedEvent, dropTarget, onEventMove]);
 
   const handleCellDoubleClick = (day: Date, hour: number) => {
     const newEvent: Omit<CalendarEvent, 'id'> = {
@@ -157,7 +157,7 @@ export default function DragDropCalendar({
       document.removeEventListener('mousemove', handleGlobalMouseMove);
       document.removeEventListener('mouseup', handleGlobalMouseUp);
     };
-  }, [draggedEvent]);
+  }, [draggedEvent, handleMouseMove, handleMouseUp]);
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import OnboardingWizard from '@/components/OnboardingWizard';
 import { createClient } from '@/lib/supabase';
 
@@ -12,12 +12,7 @@ export default function Step4() {
   const [pushPermission, setPushPermission] = useState<NotificationPermission>('default');
   const supabase = createClient();
 
-  useEffect(() => {
-    loadCurrentPreferences();
-    checkPushPermission();
-  }, []);
-
-  const loadCurrentPreferences = async () => {
+  const loadCurrentPreferences = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -40,7 +35,12 @@ export default function Step4() {
     } catch (error) {
       console.error('Error loading preferences:', error);
     }
-  };
+  }, [supabase]);
+
+  useEffect(() => {
+    loadCurrentPreferences();
+    checkPushPermission();
+  }, [loadCurrentPreferences]);
 
   const checkPushPermission = () => {
     if ('Notification' in window) {

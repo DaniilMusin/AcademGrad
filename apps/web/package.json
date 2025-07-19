@@ -16,6 +16,7 @@
     "@supabase/supabase-js": "^2.39.5",
     "@types/web-push": "^3.6.4",
     "chart.js": "^4.4.0",
+    "clsx": "^2.1.1",
     "date-fns": "^3.2.1",
     "katex": "^0.16.9",
     "lucide-react": "^0.525.0",
@@ -27,6 +28,7 @@
     "rehype-katex": "^7.0.0",
     "remark-math": "^6.0.0",
     "stripe": "^18.3.0",
+    "tailwind-merge": "^3.3.1",
     "web-push": "^3.6.7"
   },
   "devDependencies": {
@@ -38,9 +40,11 @@
     "@types/node": "^22.7.4",
     "@types/react": "^18.2.21",
     "@types/react-dom": "^18.2.7",
+    "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^4.3.1",
     "@vitest/ui": "^2.1.1",
     "eslint": "^8.57.0",
+    "eslint-config-next": "15.4.2",
     "husky": "^9.1.7",
     "jsdom": "^25.0.1",
     "tailwindcss": "^3.4.4",

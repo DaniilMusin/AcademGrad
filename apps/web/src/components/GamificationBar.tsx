@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
 
 interface Badge {
@@ -20,6 +20,11 @@ interface GamificationBarProps {
   userId?: string;
 }
 
+interface BadgeItem {
+  badge_id: number;
+  badges: Badge;
+}
+
 export default function GamificationBar({ userId }: GamificationBarProps) {
   const [progress, setProgress] = useState<UserProgress | null>(null);
   const [badges, setBadges] = useState<Badge[]>([]);
@@ -27,12 +32,7 @@ export default function GamificationBar({ userId }: GamificationBarProps) {
   const [showBadges, setShowBadges] = useState(false);
   const supabase = createClient();
 
-  useEffect(() => {
-    loadUserProgress();
-    loadUserBadges();
-  }, [userId]);
-
-  const loadUserProgress = async () => {
+  const loadUserProgress = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const targetUserId = userId || user?.id;
@@ -53,9 +53,9 @@ export default function GamificationBar({ userId }: GamificationBarProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [supabase, userId]);
 
-  const loadUserBadges = async () => {
+  const loadUserBadges = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const targetUserId = userId || user?.id;
@@ -76,13 +76,18 @@ export default function GamificationBar({ userId }: GamificationBarProps) {
           .order('given_at', { ascending: false });
         
         if (data) {
-          setBadges(data.map(item => item.badges as Badge));
+          setBadges(data.map((item: BadgeItem) => item.badges as Badge));
         }
       }
     } catch (error) {
       console.error('Error loading badges:', error);
     }
-  };
+  }, [supabase, userId]);
+
+  useEffect(() => {
+    loadUserProgress();
+    loadUserBadges();
+  }, [userId, loadUserProgress, loadUserBadges]);
 
   const getXpProgress = () => {
     if (!progress) return 0;
