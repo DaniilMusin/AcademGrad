@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 import Calendar from "@/components/Calendar";
+
+const supabase = createClient();
 
 interface ScheduleEvent {
   title: string;
@@ -24,7 +26,6 @@ export default function Schedule() {
 
   const loadSchedule = async () => {
     try {
-      const supabase = createClient();
       
       // Получаем текущего пользователя
       const { data: { user } } = await supabase.auth.getUser();

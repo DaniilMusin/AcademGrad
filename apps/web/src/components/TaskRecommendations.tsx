@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
+import { Target, TrendingUp, Clock, Star } from 'lucide-react';
+
+const supabase = createClient();
 
 interface TaskRecommendation {
   task_id: number;
@@ -23,7 +26,6 @@ export default function TaskRecommendations({ limit = 10 }: TaskRecommendationsP
   const [recommendations, setRecommendations] = useState<TaskRecommendation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState<TaskRecommendation | null>(null);
-  const supabase = createClient();
 
   const loadRecommendations = useCallback(async () => {
     try {
@@ -47,7 +49,7 @@ export default function TaskRecommendations({ limit = 10 }: TaskRecommendationsP
     } finally {
       setIsLoading(false);
     }
-  }, [supabase, limit]);
+  }, [limit]);
 
   useEffect(() => {
     loadRecommendations();

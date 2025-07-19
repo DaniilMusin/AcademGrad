@@ -4,10 +4,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import OnboardingWizard from '@/components/OnboardingWizard';
 import { createClient } from '@/lib/supabase';
 
+const supabase = createClient();
+
 export default function Step2() {
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const supabase = createClient();
 
   const loadCurrentPreferences = useCallback(async () => {
     try {
@@ -26,7 +27,7 @@ export default function Step2() {
     } catch (error) {
       console.error('Error loading preferences:', error);
     }
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     loadCurrentPreferences();
