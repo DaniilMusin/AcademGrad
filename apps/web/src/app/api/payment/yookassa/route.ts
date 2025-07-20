@@ -49,6 +49,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Database connection failed' },
+        { status: 500 }
+      );
+    }
+
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
     if (authError || !user) {
