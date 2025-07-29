@@ -47,11 +47,16 @@ export async function GET() {
       environment: process.env.NODE_ENV || 'development',
     };
 
-    // 1. Check Database (simplified for now)
+    // 1. Check Database with timeout
     const dbStartTime = Date.now();
     try {
-      // Simple connection test
-      await supabase.auth.getUser();
+      // Quick connection test with timeout
+      const dbPromise = supabase.from('user_profiles').select('count').limit(1).single();
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Database timeout')), 2000)
+      );
+      
+      await Promise.race([dbPromise, timeoutPromise]);
       health.services.database.responseTime_ms = Date.now() - dbStartTime;
       health.services.database.status = 'up';
     } catch (error) {
@@ -64,23 +69,39 @@ export async function GET() {
         health.services.application.uptime_s = Math.floor(process.uptime());
     }
 
-    // 3. Check a critical Edge Function
+    // 3. Check Edge Functions with shorter timeout
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      
       const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/badge-cron`, {
         method: 'HEAD',
-        signal: AbortSignal.timeout(5000),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       health.services.edge_functions.status = response.ok ? 'up' : 'down';
     } catch (error) {
       health.services.edge_functions.status = 'down';
     }
 
-    // 4. Check External APIs in parallel
-    await Promise.allSettled([
-      fetch('https://api.openai.com/v1/models', { method: 'HEAD', headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` }, signal: AbortSignal.timeout(5000) }).then(res => health.services.external_apis.openai = res.ok ? 'up' : 'down'),
-      fetch('https://api.stripe.com/v1/events', { method: 'HEAD', headers: { 'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY}` }, signal: AbortSignal.timeout(5000) }).then(res => health.services.external_apis.stripe = res.ok ? 'up' : 'down'),
-      // Add other API checks as needed...
-    ]);
+    // 4. Check External APIs in parallel with shorter timeouts
+    const apiChecks = [
+      fetch('https://api.openai.com/v1/models', { 
+        method: 'HEAD', 
+        headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` }, 
+        signal: AbortSignal.timeout(2000) 
+      }).then(res => res.ok).catch(() => false),
+      
+      fetch('https://api.stripe.com/v1/events', { 
+        method: 'HEAD', 
+        headers: { 'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY}` }, 
+        signal: AbortSignal.timeout(2000) 
+      }).then(res => res.ok).catch(() => false),
+    ];
+
+    const [openaiStatus, stripeStatus] = await Promise.all(apiChecks);
+    health.services.external_apis.openai = openaiStatus ? 'up' : 'down';
+    health.services.external_apis.stripe = stripeStatus ? 'up' : 'down';
 
     // Determine overall status
     const servicesDown = Object.values(health.services).flatMap(service => 
