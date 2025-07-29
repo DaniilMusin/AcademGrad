@@ -400,8 +400,21 @@ export default function WarmDesign() {
     }
   };
 
+  // Создаем красивый фон с градиентом и геометрическими элементами
+  const backgroundStyle = {
+    background: `
+      linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%),
+      radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(255, 177, 153, 0.3) 0%, transparent 50%),
+      radial-gradient(circle at 40% 40%, rgba(120, 218, 195, 0.2) 0%, transparent 50%)
+    `,
+    backgroundSize: '100% 100%, 800px 800px, 600px 600px, 400px 400px',
+    backgroundRepeat: 'no-repeat',
+    position: 'relative' as const
+  };
+
   const paperGrainCSS = `
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4'/%3E%3CfeColorMatrix in='turbulence' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4'/%3E%3CfeColorMatrix in='turbulence' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E");
   `;
 
   return (
@@ -409,16 +422,67 @@ export default function WarmDesign() {
       fontFamily: 'system-ui, sans-serif',
       margin: 0,
       padding: 0,
-      backgroundColor: '#FAFAF7',
       minHeight: '100vh',
-      background: `#FAFAF7 ${paperGrainCSS}`
+      ...backgroundStyle
     }}>
+      {/* Добавляем декоративные геометрические элементы */}
+      <div style={{
+        position: 'absolute',
+        top: '10%',
+        left: '5%',
+        width: '200px',
+        height: '200px',
+        background: 'rgba(79, 127, 230, 0.1)',
+        borderRadius: '50%',
+        filter: 'blur(80px)',
+        zIndex: 0
+      }} />
+      <div style={{
+        position: 'absolute',
+        top: '60%',
+        right: '10%',
+        width: '150px',
+        height: '150px',
+        background: 'rgba(44, 208, 170, 0.15)',
+        borderRadius: '30%',
+        filter: 'blur(60px)',
+        zIndex: 0
+      }} />
+      <div style={{
+        position: 'absolute',
+        bottom: '20%',
+        left: '15%',
+        width: '100px',
+        height: '100px',
+        background: 'rgba(255, 181, 71, 0.2)',
+        borderRadius: '50%',
+        filter: 'blur(40px)',
+        zIndex: 0
+      }} />
+
+      {/* Добавляем overlay для лучшей читаемости */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: `
+          linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%)
+          ${paperGrainCSS}
+        `,
+        zIndex: 1
+      }} />
+      
+      {/* Основной контент */}
+      <div style={{ position: 'relative', zIndex: 2 }}>
       {/* Navigation */}
       <nav style={{
-        background: 'rgba(255, 255, 255, 0.8)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
+        background: 'rgba(255, 255, 255, 0.95)',
+        backdropFilter: 'blur(30px)',
+        WebkitBackdropFilter: 'blur(30px)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.3)',
+        boxShadow: '0 2px 20px rgba(0, 0, 0, 0.1)',
         position: 'sticky',
         top: 0,
         zIndex: 100
@@ -783,10 +847,11 @@ export default function WarmDesign() {
                   style={{
                     textDecoration: 'none',
                     display: 'block',
-                    backgroundColor: 'white',
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
                     borderRadius: '20px',
-                    boxShadow: '0 4px 18px rgba(0,0,0,0.08)',
-                    border: '2px solid rgba(79, 127, 230, 0.1)',
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    backdropFilter: 'blur(20px)',
                     padding: '28px',
                     transition: 'all 0.3s ease',
                     cursor: 'pointer',
@@ -1313,6 +1378,7 @@ export default function WarmDesign() {
           </div>
         </section>
       )}
-    </div>
+      </div> {/* Закрываем основной контент */}
+    </div> {/* Закрываем главный div с фоном */}
   );
 }
