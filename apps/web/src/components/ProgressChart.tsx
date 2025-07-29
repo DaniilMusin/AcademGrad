@@ -1,31 +1,40 @@
 "use client";
-import { Bar } from "react-chartjs-2";
-import { Chart, BarElement, CategoryScale, LinearScale } from "chart.js";
-Chart.register(BarElement, CategoryScale, LinearScale);
+import { memo, useMemo } from "react";
 
-export default function ProgressChart({ data }: { data: any[] }) {
-  const labels = data.map((d) => d.topic);
-  const values = data.map((d) => (d.error_rate * 100).toFixed(0));
+interface ProgressChartProps {
+  data: number[];
+}
+
+// Простой график без тяжелых библиотек для dashboard
+const ProgressChart = memo(({ data }: ProgressChartProps) => {
+  const maxValue = useMemo(() => Math.max(...data, 1), [data]);
+  
+  const chartData = useMemo(() => {
+    return data.map((value, index) => ({
+      day: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'][index],
+      value,
+      height: (value / maxValue) * 100
+    }));
+  }, [data, maxValue]);
 
   return (
-    <div className="max-w-xl">
-      <Bar
-        data={{
-          labels,
-          datasets: [
-            {
-              label: "% ошибок",
-              data: values,
-            },
-          ],
-        }}
-        options={{
-          plugins: { legend: { display: false } },
-          scales: {
-            y: { suggestedMax: 100 },
-          },
-        }}
-      />
+    <div className="w-full h-64">
+      <div className="flex items-end justify-center h-full space-x-2 p-4">
+        {chartData.map((item, index) => (
+          <div key={index} className="flex flex-col items-center flex-1">
+            <div 
+              className="bg-blue-500 rounded-t min-h-1 w-full transition-all duration-500"
+              style={{ height: `${item.height}%` }}
+              title={`${item.day}: ${item.value} задач`}
+            ></div>
+            <span className="text-xs text-gray-600 mt-2">{item.day}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
-}
+});
+
+ProgressChart.displayName = 'ProgressChart';
+
+export default ProgressChart;

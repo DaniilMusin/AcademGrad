@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:*)",
+      "Bash(npx next:*)",
+      "Bash(node_modules/.bin/next dev:*)",
+      "Bash(npm install:*)",
+      "Bash(./node_modules/.bin/next dev)",
+      "Bash(rm:*)",
+      "Bash(del /S /Q node_modules)",
+      "Bash(powershell Remove-Item:*)",
+      "Bash(yarn install)",
+      "Bash(npm cache clean:*)",
+      "Bash(timeout 30 npm install)",
+      "Bash(npm ls:*)",
+      "Bash(npx --yes create-next-app@latest temp --typescript --tailwind --eslint --app --src-dir --import-alias=\"@/*\")",
+      "Bash(mv:*)",
+      "Bash(docker:*)",
+      "Bash(docker-compose:*)",
+      "Bash(node:*)",
+      "Bash(npm:*)",
+      "Bash(ls:*)"
+    ],
+    "deny": []
+  }
+}

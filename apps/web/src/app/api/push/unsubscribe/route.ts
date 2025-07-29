@@ -1,42 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
-let supabase: any = null;
-try {
-  supabase = createClient();
-} catch (error) {
-  // Supabase client creation failed (e.g., during build time)
-  console.warn('Supabase client creation failed:', error);
-}
-
 export async function POST(request: NextRequest) {
   try {
-    const { endpoint } = await request.json();
+    const { userId } = await request.json();
     
-    if (!endpoint) {
+    if (!userId) {
       return NextResponse.json(
-        { error: 'Endpoint is required' },
+        { error: 'UserId is required' },
         { status: 400 }
       );
     }
 
-    // Remove subscription from database (commented out - push_subscriptions table not in schema)
-    // const { error } = await supabase
-    //   .from('push_subscriptions')
-    //   .delete()
-    //   .eq('endpoint', endpoint);
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    // if (error) {
-    //   console.error('Database error:', error);
-    //   return NextResponse.json(
-    //     { error: 'Failed to remove subscription' },
-    //     { status: 500 }
-    //   );
-    // }
+    if (!user || user.id !== userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Remove subscription from user_profiles table
+    const { error } = await supabase
+      .from('user_profiles')
+      .update({
+        push_endpoint: null,
+        push_p256dh_key: null,
+        push_auth_key: null,
+        push_notifications_enabled: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Database error:', error);
+      return NextResponse.json(
+        { error: 'Failed to remove subscription' },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({ 
       success: true,
-      message: 'Subscription removed successfully' 
+      message: 'Push notifications disabled successfully' 
     });
 
   } catch (error) {

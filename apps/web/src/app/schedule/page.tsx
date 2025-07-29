@@ -48,7 +48,7 @@ export default function Schedule() {
         setError("Ошибка загрузки расписания");
       } else {
         // Преобразуем данные в формат событий для календаря
-        const formattedEvents: ScheduleEvent[] = scheduleData?.map(item => ({
+        const formattedEvents: ScheduleEvent[] = scheduleData?.map((item: any) => ({
           title: `${item.topic} (${item.difficulty} ⭐)`,
           start: item.next_review,
           end: new Date(new Date(item.next_review).getTime() + 30 * 60 * 1000).toISOString(), // 30 минут

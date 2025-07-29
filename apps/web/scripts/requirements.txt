@@ -1,0 +1,19 @@
+# Requirements for RAG import scripts
+
+# Supabase client
+supabase==2.3.0
+
+# OpenAI for embeddings
+openai==1.10.0
+
+# HTTP requests
+aiohttp==3.9.1
+
+# CLI argument parsing
+argparse
+
+# Path manipulation
+pathlib
+
+# JSON and async support
+asyncio

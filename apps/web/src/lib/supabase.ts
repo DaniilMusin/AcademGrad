@@ -199,10 +199,40 @@ let supabaseClient: ReturnType<typeof createBrowserClient<Database>> | null = nu
 
 export const createClient = () => {
   if (!supabaseClient) {
-    supabaseClient = createBrowserClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.warn('Supabase credentials not found. Using mock client.');
+      // Return a mock client that will always fail gracefully
+      return {
+        from: () => ({
+          select: () => ({
+            eq: () => ({
+              single: () => Promise.resolve({ data: null, error: { message: 'No database connection' } }),
+              order: () => ({
+                limit: () => Promise.resolve({ data: null, error: { message: 'No database connection' } })
+              })
+            }),
+            ilike: () => ({
+              eq: () => ({
+                order: () => ({
+                  limit: () => Promise.resolve({ data: null, error: { message: 'No database connection' } })
+                })
+              }),
+              order: () => ({
+                limit: () => Promise.resolve({ data: null, error: { message: 'No database connection' } })
+              })
+            }),
+            order: () => ({
+              limit: () => Promise.resolve({ data: null, error: { message: 'No database connection' } })
+            })
+          })
+        })
+      } as any;
+    }
+    
+    supabaseClient = createBrowserClient<Database>(supabaseUrl, supabaseKey);
   }
   return supabaseClient;
 };

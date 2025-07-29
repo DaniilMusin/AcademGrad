@@ -130,10 +130,25 @@ export default function Step3() {
     return selectedSlots.some(s => s.day === day && s.time === time);
   };
 
-  const handleGoogleCalendarImport = () => {
-    setShowGoogleCalendar(true);
-    // This would integrate with Google Calendar API
-    // For now, just show a placeholder
+  const handleGoogleCalendarImport = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Импортируем сервис динамически для клиентской стороны
+      const GoogleCalendarService = (await import('@/lib/google-calendar')).default;
+      const googleCalendar = new GoogleCalendarService();
+      
+      // Получаем URL для авторизации
+      const authUrl = googleCalendar.initiateAuth();
+      
+      // Перенаправляем пользователя на Google OAuth
+      window.location.href = authUrl;
+      
+    } catch (error) {
+      console.error('Error initiating Google Calendar auth:', error);
+      alert('Произошла ошибка при подключении к Google Calendar');
+      setIsLoading(false);
+    }
   };
 
   return (

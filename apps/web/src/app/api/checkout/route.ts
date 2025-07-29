@@ -1,12 +1,16 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import Stripe from 'stripe';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2025-06-30.basil',
+});
 
 export async function POST(request: NextRequest) {
   try {
-    // Initialize Supabase client
     const supabase = createClient();
     
-    const { price_id, user_id } = await request.json();
+    const { price_id, user_id, success_url, cancel_url } = await request.json();
 
     // Validate required fields
     if (!price_id || !user_id) {
@@ -24,43 +28,90 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For now, return a mock response until Stripe is fully integrated
-    // This is a placeholder that can be replaced with actual Stripe integration
-    const mockCheckoutSession = {
-      id: 'cs_test_mock_session_id',
-      url: `${process.env.NEXT_PUBLIC_FRONTEND_URL}/success?session_id=cs_test_mock_session_id`,
-      payment_status: 'unpaid',
-      amount_total: 2999, // $29.99
-      currency: 'usd',
-      customer_email: '',
-      created: Date.now(),
-      expires_at: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+    // Get user data from Supabase
+    const { data: user } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not authenticated' },
+        { status: 401 }
+      );
+    }
+
+    // Get or create Stripe customer
+    let customer;
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select('stripe_customer_id, email')
+      .eq('user_id', user_id)
+      .single();
+
+    if (userProfile?.stripe_customer_id) {
+      customer = await stripe.customers.retrieve(userProfile.stripe_customer_id);
+    } else {
+      customer = await stripe.customers.create({
+        email: userProfile?.email || user.user?.email,
+        metadata: {
+          user_id: user_id,
+        },
+      });
+
+      // Save customer ID to database
+      await supabase
+        .from('user_profiles')
+        .upsert({
+          user_id: user_id,
+          stripe_customer_id: customer.id,
+        });
+    }
+
+    // Create checkout session
+    const session = await stripe.checkout.sessions.create({
+      customer: customer.id,
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price: price_id,
+          quantity: 1,
+        },
+      ],
+      mode: 'subscription',
+      success_url: success_url || `${process.env.NEXT_PUBLIC_SITE_URL}/subscription?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: cancel_url || `${process.env.NEXT_PUBLIC_SITE_URL}/subscription?canceled=true`,
       metadata: {
         user_id: user_id,
-        price_id: price_id
-      }
-    };
+        price_id: price_id,
+      },
+      subscription_data: {
+        metadata: {
+          user_id: user_id,
+        },
+      },
+      billing_address_collection: 'required',
+      automatic_tax: {
+        enabled: true,
+      },
+    });
 
-    // Log the checkout attempt (commented out due to TypeScript issues)
-    // try {
-    //   await supabase
-    //     .from('user_events')
-    //     .insert({
-    //       user_id: user_id,
-    //       title: 'Checkout Initiated',
-    //       start_time: new Date().toISOString(),
-    //       end_time: new Date().toISOString(),
-    //       event_type: 'checkout_initiated',
-    //       is_draft: false
-    //     });
-    // } catch (error) {
-    //   console.error('Failed to log checkout event:', error);
-    //   // Continue with checkout even if logging fails
-    // }
+    // Log the checkout attempt
+    try {
+      await supabase
+        .from('user_events')
+        .insert({
+          user_id: user_id,
+          title: 'Checkout Initiated',
+          start_time: new Date().toISOString(),
+          end_time: new Date().toISOString(),
+          event_type: 'checkout_initiated',
+          is_draft: false
+        });
+    } catch (error) {
+      console.error('Failed to log checkout event:', error);
+      // Continue with checkout even if logging fails
+    }
 
     return NextResponse.json({
-      sessionId: mockCheckoutSession.id,
-      url: mockCheckoutSession.url,
+      sessionId: session.id,
+      url: session.url,
       status: 'success'
     });
 
@@ -85,21 +136,28 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Mock session retrieval
-    const mockSession = {
-      id: session_id,
-      payment_status: 'paid',
-      amount_total: 2999,
-      currency: 'usd',
-      customer_email: 'user@example.com',
-      metadata: {
-        user_id: 'user_123',
-        price_id: 'price_premium'
-      }
-    };
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return NextResponse.json(
+        { error: 'Stripe not configured' },
+        { status: 500 }
+      );
+    }
+
+    // Retrieve session from Stripe
+    const session = await stripe.checkout.sessions.retrieve(session_id, {
+      expand: ['line_items', 'subscription']
+    });
 
     return NextResponse.json({
-      session: mockSession,
+      session: {
+        id: session.id,
+        payment_status: session.payment_status,
+        amount_total: session.amount_total,
+        currency: session.currency,
+        customer_email: session.customer_email,
+        metadata: session.metadata,
+        subscription: session.subscription
+      },
       status: 'success'
     });
 
