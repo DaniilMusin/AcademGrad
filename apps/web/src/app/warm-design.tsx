@@ -8,11 +8,13 @@ export default function WarmDesign() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
   const [selectedCounts, setSelectedCounts] = useState<Record<string, number>>({});
+  const [showModeModal, setShowModeModal] = useState(false);
+  const [pendingTaskId, setPendingTaskId] = useState<string | null>(null);
 
   const subjects = [
     { id: 'math', name: 'Математика (профиль)', topics: 18 },
-    { id: 'physics', name: 'Физика', topics: 5 },
-    { id: 'chemistry', name: 'Химия', topics: 4 }
+    { id: 'physics', name: 'Физика', topics: 8 },
+    { id: 'chemistry', name: 'Химия', topics: 6 }
   ];
 
   const mathTopics = [
@@ -357,6 +359,167 @@ export default function WarmDesign() {
     }
   ];
 
+  const physicsTopics = [
+    { 
+      id: '1', 
+      name: 'Кинематика', 
+      count: 45, 
+      difficulty: 2, 
+      topic: 'Механика',
+      subtopics: [
+        { id: '1-1', name: 'Равномерное движение', count: 15 },
+        { id: '1-2', name: 'Равноускоренное движение', count: 20 },
+        { id: '1-3', name: 'Движение по окружности', count: 10 }
+      ]
+    },
+    { 
+      id: '2', 
+      name: 'Динамика', 
+      count: 50, 
+      difficulty: 3, 
+      topic: 'Механика',
+      subtopics: [
+        { id: '2-1', name: 'Законы Ньютона', count: 25 },
+        { id: '2-2', name: 'Силы в природе', count: 25 }
+      ]
+    },
+    { 
+      id: '3', 
+      name: 'Статика', 
+      count: 30, 
+      difficulty: 3, 
+      topic: 'Механика',
+      subtopics: [
+        { id: '3-1', name: 'Равновесие тел', count: 20 },
+        { id: '3-2', name: 'Момент силы', count: 10 }
+      ]
+    },
+    { 
+      id: '4', 
+      name: 'Законы сохранения', 
+      count: 40, 
+      difficulty: 4, 
+      topic: 'Механика',
+      subtopics: [
+        { id: '4-1', name: 'Закон сохранения энергии', count: 20 },
+        { id: '4-2', name: 'Закон сохранения импульса', count: 20 }
+      ]
+    },
+    { 
+      id: '5', 
+      name: 'Молекулярная физика', 
+      count: 35, 
+      difficulty: 3, 
+      topic: 'МКТ',
+      subtopics: [
+        { id: '5-1', name: 'Газовые законы', count: 20 },
+        { id: '5-2', name: 'Уравнение состояния', count: 15 }
+      ]
+    },
+    { 
+      id: '6', 
+      name: 'Термодинамика', 
+      count: 30, 
+      difficulty: 4, 
+      topic: 'МКТ',
+      subtopics: [
+        { id: '6-1', name: 'Первый закон термодинамики', count: 15 },
+        { id: '6-2', name: 'Тепловые машины', count: 15 }
+      ]
+    },
+    { 
+      id: '7', 
+      name: 'Электростатика', 
+      count: 40, 
+      difficulty: 3, 
+      topic: 'Электричество',
+      subtopics: [
+        { id: '7-1', name: 'Закон Кулона', count: 20 },
+        { id: '7-2', name: 'Электрическое поле', count: 20 }
+      ]
+    },
+    { 
+      id: '8', 
+      name: 'Постоянный ток', 
+      count: 35, 
+      difficulty: 3, 
+      topic: 'Электричество',
+      subtopics: [
+        { id: '8-1', name: 'Закон Ома', count: 15 },
+        { id: '8-2', name: 'Работа и мощность тока', count: 20 }
+      ]
+    }
+  ];
+
+  const chemistryTopics = [
+    { 
+      id: '1', 
+      name: 'Строение атома', 
+      count: 25, 
+      difficulty: 2, 
+      topic: 'Общая химия',
+      subtopics: [
+        { id: '1-1', name: 'Электронные конфигурации', count: 15 },
+        { id: '1-2', name: 'Периодический закон', count: 10 }
+      ]
+    },
+    { 
+      id: '2', 
+      name: 'Химическая связь', 
+      count: 30, 
+      difficulty: 3, 
+      topic: 'Общая химия',
+      subtopics: [
+        { id: '2-1', name: 'Ковалентная связь', count: 15 },
+        { id: '2-2', name: 'Ионная связь', count: 15 }
+      ]
+    },
+    { 
+      id: '3', 
+      name: 'Химические реакции', 
+      count: 40, 
+      difficulty: 3, 
+      topic: 'Общая химия',
+      subtopics: [
+        { id: '3-1', name: 'Типы реакций', count: 20 },
+        { id: '3-2', name: 'Окислительно-восстановительные реакции', count: 20 }
+      ]
+    },
+    { 
+      id: '4', 
+      name: 'Растворы', 
+      count: 35, 
+      difficulty: 4, 
+      topic: 'Общая химия',
+      subtopics: [
+        { id: '4-1', name: 'Концентрации растворов', count: 20 },
+        { id: '4-2', name: 'Электролитическая диссоциация', count: 15 }
+      ]
+    },
+    { 
+      id: '5', 
+      name: 'Органическая химия', 
+      count: 50, 
+      difficulty: 4, 
+      topic: 'Органика',
+      subtopics: [
+        { id: '5-1', name: 'Углеводороды', count: 25 },
+        { id: '5-2', name: 'Кислородсодержащие соединения', count: 25 }
+      ]
+    },
+    { 
+      id: '6', 
+      name: 'Расчетные задачи', 
+      count: 45, 
+      difficulty: 5, 
+      topic: 'Задачи',
+      subtopics: [
+        { id: '6-1', name: 'Количество вещества', count: 20 },
+        { id: '6-2', name: 'Массовые доли', count: 25 }
+      ]
+    }
+  ];
+
   const getDifficultyStars = (difficulty: number) => {
     return '★'.repeat(difficulty) + '☆'.repeat(5 - difficulty);
   };
@@ -372,8 +535,20 @@ export default function WarmDesign() {
     return Object.values(selectedCounts).reduce((sum, count) => sum + count, 0);
   };
 
+  const getCurrentTopics = () => {
+    switch (selectedSubject) {
+      case 'physics':
+        return physicsTopics;
+      case 'chemistry':
+        return chemistryTopics;
+      default:
+        return mathTopics;
+    }
+  };
+
   const handleTaskClick = (taskId: string) => {
-    const task = mathTopics.find(t => t.id === taskId);
+    const topics = getCurrentTopics();
+    const task = topics.find(t => t.id === taskId);
     if (task && task.subtopics.length > 0) {
       setSelectedTask(selectedTask === taskId ? null : taskId);
       if (selectedTask !== taskId) {
@@ -386,30 +561,42 @@ export default function WarmDesign() {
   };
 
   const handleStartSolving = (taskId: string) => {
+    setPendingTaskId(taskId);
+    setShowModeModal(true);
+  };
+
+  const handleModeSelect = (mode: 'test' | 'learning') => {
+    if (!pendingTaskId) return;
+    
+    // Обработка готовых вариантов
+    if (pendingTaskId === 'random' || pendingTaskId === 'teacher') {
+      window.location.href = `/solve?variant=${pendingTaskId}&mode=${mode}`;
+      setShowModeModal(false);
+      setPendingTaskId(null);
+      return;
+    }
+    
+    // Обработка обычных заданий
     const selectedSubtopics = Object.entries(selectedCounts)
       .filter(([_, count]) => count > 0)
       .map(([subtopicId, count]) => `${subtopicId}:${count}`)
       .join(',');
     
+    const subject = selectedSubject;
+    
     if (selectedSubtopics) {
-      // Перенаправляем на страницу решения с выбранными подтемами
-      window.location.href = `/solve?task=${taskId}&subtopics=${selectedSubtopics}`;
+      window.location.href = `/solve?task=${pendingTaskId}&subtopics=${selectedSubtopics}&subject=${subject}&mode=${mode}`;
     } else {
-      // Если ничего не выбрано, показываем случайное задание из этой темы
-      window.location.href = `/tasks/${taskId}`;
+      window.location.href = `/solve?task=${pendingTaskId}&subject=${subject}&mode=${mode}`;
     }
+    
+    setShowModeModal(false);
+    setPendingTaskId(null);
   };
 
-  // Создаем красивый фон с градиентом и геометрическими элементами
+  // Создаем нейтральный фон
   const backgroundStyle = {
-    background: `
-      linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%),
-      radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-      radial-gradient(circle at 80% 20%, rgba(255, 177, 153, 0.3) 0%, transparent 50%),
-      radial-gradient(circle at 40% 40%, rgba(120, 218, 195, 0.2) 0%, transparent 50%)
-    `,
-    backgroundSize: '100% 100%, 800px 800px, 600px 600px, 400px 400px',
-    backgroundRepeat: 'no-repeat',
+    background: '#f9fafb',
     position: 'relative' as const
   };
 
@@ -425,54 +612,6 @@ export default function WarmDesign() {
       minHeight: '100vh',
       ...backgroundStyle
     }}>
-      {/* Добавляем декоративные геометрические элементы */}
-      <div style={{
-        position: 'absolute',
-        top: '10%',
-        left: '5%',
-        width: '200px',
-        height: '200px',
-        background: 'rgba(79, 127, 230, 0.1)',
-        borderRadius: '50%',
-        filter: 'blur(80px)',
-        zIndex: 0
-      }} />
-      <div style={{
-        position: 'absolute',
-        top: '60%',
-        right: '10%',
-        width: '150px',
-        height: '150px',
-        background: 'rgba(44, 208, 170, 0.15)',
-        borderRadius: '30%',
-        filter: 'blur(60px)',
-        zIndex: 0
-      }} />
-      <div style={{
-        position: 'absolute',
-        bottom: '20%',
-        left: '15%',
-        width: '100px',
-        height: '100px',
-        background: 'rgba(255, 181, 71, 0.2)',
-        borderRadius: '50%',
-        filter: 'blur(40px)',
-        zIndex: 0
-      }} />
-
-      {/* Добавляем overlay для лучшей читаемости */}
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: `
-          linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%)
-          ${paperGrainCSS}
-        `,
-        zIndex: 1
-      }} />
       
       {/* Основной контент */}
       <div style={{ position: 'relative', zIndex: 2 }}>
@@ -667,7 +806,7 @@ export default function WarmDesign() {
       </nav>
 
       {/* Tasks Grid - Now at the top */}
-      {selectedSubject === 'math' && (
+      {(selectedSubject === 'math' || selectedSubject === 'physics' || selectedSubject === 'chemistry') && (
         <section style={{ padding: '40px 32px' }}>
           <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
             <h2 style={{
@@ -678,7 +817,7 @@ export default function WarmDesign() {
               marginBottom: '16px',
               fontFamily: 'Inter, system-ui, sans-serif'
             }}>
-              Задания по математике
+              Задания по {selectedSubject === 'math' ? 'математике' : selectedSubject === 'physics' ? 'физике' : 'химии'}
             </h2>
             <p style={{
               textAlign: 'center',
@@ -748,8 +887,8 @@ export default function WarmDesign() {
                 }}>
                   <button
                     onClick={() => {
-                      // Логика для случайного варианта
-                      window.location.href = '/solve?variant=random';
+                      setPendingTaskId('random');
+                      setShowModeModal(true);
                     }}
                     style={{
                       backgroundColor: 'rgba(255, 255, 255, 0.2)',
@@ -791,8 +930,8 @@ export default function WarmDesign() {
                   
                   <button
                     onClick={() => {
-                      // Логика для варианта преподавателей
-                      window.location.href = '/solve?variant=teacher';
+                      setPendingTaskId('teacher');
+                      setShowModeModal(true);
                     }}
                     style={{
                       backgroundColor: 'rgba(255, 255, 255, 0.2)',
@@ -840,7 +979,7 @@ export default function WarmDesign() {
               gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', 
               gap: '24px' 
             }}>
-              {mathTopics.map(topic => (
+              {getCurrentTopics().map(topic => (
                 <div
                   key={topic.id}
                   onClick={() => handleTaskClick(topic.id)}
@@ -1335,7 +1474,7 @@ export default function WarmDesign() {
       </section>
 
       {/* Empty State for Other Subjects */}
-      {selectedSubject !== 'math' && (
+      {selectedSubject !== 'math' && selectedSubject !== 'physics' && selectedSubject !== 'chemistry' && (
         <section style={{ padding: '120px 32px' }}>
           <div style={{ maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>
             <div style={{ fontSize: '80px', marginBottom: '24px' }}>🌱</div>
@@ -1378,7 +1517,175 @@ export default function WarmDesign() {
           </div>
         </section>
       )}
-      </div> {/* Закрываем основной контент */}
-    </div> {/* Закрываем главный div с фоном */}
+      </div>
+
+      {/* Mode Selection Modal */}
+      {showModeModal && (
+        <>
+          <div
+            onClick={() => {
+              setShowModeModal(false);
+              setPendingTaskId(null);
+            }}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(34, 42, 53, 0.7)',
+              zIndex: 1000,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          />
+          
+          <div style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            backgroundColor: 'white',
+            borderRadius: '24px',
+            padding: '40px',
+            maxWidth: '600px',
+            width: '90%',
+            boxShadow: '0 20px 64px rgba(0,0,0,0.15)',
+            zIndex: 1001
+          }}>
+            <h3 style={{
+              fontSize: '28px',
+              fontWeight: '700',
+              color: '#222A35',
+              marginBottom: '16px',
+              textAlign: 'center',
+              fontFamily: 'Inter, system-ui, sans-serif'
+            }}>
+              Выбери режим занятий
+            </h3>
+            
+            <p style={{
+              fontSize: '16px',
+              color: '#6b7280',
+              marginBottom: '32px',
+              textAlign: 'center',
+              fontFamily: 'Comic Neue, cursive'
+            }}>
+              Как хочешь заниматься сегодня? 🤔
+            </p>
+            
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '24px'
+            }}>
+              <button
+                onClick={() => handleModeSelect('test')}
+                style={{
+                  padding: '32px 24px',
+                  backgroundColor: 'white',
+                  border: '3px solid #4F7FE6',
+                  borderRadius: '20px',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  textAlign: 'center'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#4F7FE6';
+                  e.currentTarget.style.color = 'white';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'white';
+                  e.currentTarget.style.color = '#222A35';
+                }}
+              >
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>📝</div>
+                <h4 style={{
+                  fontSize: '20px',
+                  fontWeight: '700',
+                  marginBottom: '12px',
+                  fontFamily: 'Inter, system-ui, sans-serif'
+                }}>
+                  Режим теста
+                </h4>
+                <p style={{
+                  fontSize: '14px',
+                  color: '#6b7280',
+                  margin: 0,
+                  fontFamily: 'Comic Neue, cursive',
+                  lineHeight: '1.4'
+                }}>
+                  Сначала решаешь все задания, потом смотришь результаты и разборы
+                </p>
+              </button>
+              
+              <button
+                onClick={() => handleModeSelect('learning')}
+                style={{
+                  padding: '32px 24px',
+                  backgroundColor: 'white',
+                  border: '3px solid #2CD0AA',
+                  borderRadius: '20px',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  textAlign: 'center'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#2CD0AA';
+                  e.currentTarget.style.color = 'white';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'white';
+                  e.currentTarget.style.color = '#222A35';
+                }}
+              >
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🤖</div>
+                <h4 style={{
+                  fontSize: '20px',
+                  fontWeight: '700',
+                  marginBottom: '12px',
+                  fontFamily: 'Inter, system-ui, sans-serif'
+                }}>
+                  Режим обучения
+                </h4>
+                <p style={{
+                  fontSize: '14px',
+                  color: '#6b7280',
+                  margin: 0,
+                  fontFamily: 'Comic Neue, cursive',
+                  lineHeight: '1.4'
+                }}>
+                  Решаешь задания и сразу видишь правильные ответы и объяснения
+                </p>
+              </button>
+            </div>
+            
+            <div style={{
+              textAlign: 'center',
+              marginTop: '24px'
+            }}>
+              <button
+                onClick={() => {
+                  setShowModeModal(false);
+                  setPendingTaskId(null);
+                }}
+                style={{
+                  padding: '12px 24px',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  color: '#6b7280',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontFamily: 'Inter, system-ui, sans-serif'
+                }}
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
