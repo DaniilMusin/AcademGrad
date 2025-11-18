@@ -6,6 +6,11 @@ interface CustomPushSubscription {
   };
 }
 
+interface ExtendedNotificationOptions extends NotificationOptions {
+  vibrate?: number[];
+  actions?: any[];
+}
+
 class PushNotificationService {
   private swRegistration: ServiceWorkerRegistration | null = null;
 
@@ -137,7 +142,7 @@ class PushNotificationService {
   }
 
   // Показываем локальное уведомление (для тестирования)
-  async showNotification(title: string, options: NotificationOptions = {}) {
+  async showNotification(title: string, options: ExtendedNotificationOptions = {}) {
     if (!this.swRegistration) {
       return;
     }
@@ -156,7 +161,7 @@ class PushNotificationService {
       actions: options.actions || [],
       requireInteraction: false,
       ...options,
-    });
+    } as any);
   }
 
   private urlBase64ToUint8Array(base64String: string): Uint8Array {

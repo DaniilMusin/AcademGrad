@@ -26,54 +26,10 @@ export default function NotificationCenter() {
   const [isPushEnabled, setIsPushEnabled] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
-  const initializePushService = useCallback(async () => {
-    try {
-      const initialized = await pushService.init();
-      if (initialized) {
-        const subscribed = await pushService.isSubscribed();
-        setIsPushEnabled(subscribed);
-      }
-    } catch (error) {
-      console.warn('Push service not available:', error);
-    }
-  }, [pushService]);
-
-  useEffect(() => {
-    loadNotifications();
-    initializePushService();
-    
-    // Подписываемся на новые уведомления
-    const channel = supabase
-      .channel('notifications')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'notifications'
-      }, (payload: any) => {
-        const newNotification = payload.new as Notification;
-        setNotifications(prev => [newNotification, ...prev]);
-        setUnreadCount(prev => prev + 1);
-        
-        // Показываем push уведомление через service worker
-        pushService.showNotification(newNotification.title, {
-          body: newNotification.message,
-          icon: '/favicon.ico',
-          tag: newNotification.id,
-          data: { notificationId: newNotification.id, actionUrl: newNotification.action_url }
-        });
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [loadNotifications, initializePushService, pushService]);
-
-
   const loadNotifications = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) return;
 
       // Загружаем только необходимые поля для производительности
@@ -92,6 +48,49 @@ export default function NotificationCenter() {
       console.error('Error loading notifications:', err);
     }
   }, []);
+
+  const initializePushService = useCallback(async () => {
+    try {
+      const initialized = await pushService.init();
+      if (initialized) {
+        const subscribed = await pushService.isSubscribed();
+        setIsPushEnabled(subscribed);
+      }
+    } catch (error) {
+      console.warn('Push service not available:', error);
+    }
+  }, [pushService]);
+
+  useEffect(() => {
+    loadNotifications();
+    initializePushService();
+
+    // Подписываемся на новые уведомления
+    const channel = supabase
+      .channel('notifications')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'notifications'
+      }, (payload: any) => {
+        const newNotification = payload.new as Notification;
+        setNotifications(prev => [newNotification, ...prev]);
+        setUnreadCount(prev => prev + 1);
+
+        // Показываем push уведомление через service worker
+        pushService.showNotification(newNotification.title, {
+          body: newNotification.message,
+          icon: '/favicon.ico',
+          tag: newNotification.id,
+          data: { notificationId: newNotification.id, actionUrl: newNotification.action_url }
+        });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [loadNotifications, initializePushService, pushService]);
 
   const markAsRead = async (notificationId: string) => {
     try {

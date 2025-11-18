@@ -194,8 +194,8 @@ export default function TaskChat({ taskId, taskTitle, taskStatement }: TaskChatP
           <div className="text-xs text-blue-600 font-medium mb-1">Условие задачи:</div>
           <div className="text-sm text-blue-800 line-clamp-3">
             <ReactMarkdown
-              remarkPlugins={[remarkMath]}
-              rehypePlugins={[rehypeKatex]}
+              remarkPlugins={[remarkMath as any]}
+              rehypePlugins={[rehypeKatex as any]}
               className="prose prose-sm max-w-none"
             >
               {taskStatement}
@@ -238,8 +238,8 @@ export default function TaskChat({ taskId, taskTitle, taskStatement }: TaskChatP
                 
                 <div className="flex-1">
                   <ReactMarkdown
-                    remarkPlugins={[remarkMath]}
-                    rehypePlugins={[rehypeKatex]}
+                    remarkPlugins={[remarkMath as any]}
+                    rehypePlugins={[rehypeKatex as any]}
                     className={`prose max-w-none ${
                       message.role === 'user'
                         ? 'prose-invert prose-sm'

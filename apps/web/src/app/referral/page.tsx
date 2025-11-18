@@ -67,9 +67,9 @@ export default function Referral() {
         .eq('referrer_user_id', user.id);
 
       const totalReferrals = referralData?.length || 0;
-      const activeReferrals = referralData?.filter(r => r.status === 'active' || r.status === 'premium').length || 0;
-      const totalEarned = referralData?.reduce((sum, r) => sum + (r.reward_earned || 0), 0) || 0;
-      const pendingReward = referralData?.filter(r => r.status === 'pending').length * 100 || 0; // 100 рублей за каждого
+      const activeReferrals = referralData?.filter((r: any) => r.status === 'active' || r.status === 'premium').length || 0;
+      const totalEarned = referralData?.reduce((sum: number, r: any) => sum + (r.reward_earned || 0), 0) || 0;
+      const pendingReward = referralData?.filter((r: any) => r.status === 'pending').length * 100 || 0; // 100 рублей за каждого
 
       setStats({
         total_referrals: totalReferrals,
@@ -79,7 +79,7 @@ export default function Referral() {
         referral_code: referralCode
       });
 
-      const processedReferrals = referralData?.map(r => ({
+      const processedReferrals = referralData?.map((r: any) => ({
         id: r.id,
         email: r.user_profiles?.email || 'Неизвестно',
         created_at: r.created_at,

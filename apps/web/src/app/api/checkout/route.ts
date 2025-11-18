@@ -2,14 +2,22 @@ import { NextResponse, NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-06-30.basil',
-});
+// Initialize Stripe lazily to avoid build-time errors
+let stripeInstance: Stripe | null = null;
+const getStripe = () => {
+  if (!stripeInstance && process.env.STRIPE_SECRET_KEY) {
+    stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2025-06-30.basil',
+    });
+  }
+  return stripeInstance;
+};
 
 export async function POST(request: NextRequest) {
   try {
+    const stripe = getStripe();
     const supabase = createClient();
-    
+
     const { price_id, user_id, success_url, cancel_url } = await request.json();
 
     // Validate required fields
@@ -21,7 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if Stripe is configured
-    if (!process.env.STRIPE_SECRET_KEY) {
+    if (!stripe || !process.env.STRIPE_SECRET_KEY) {
       return NextResponse.json(
         { error: 'Stripe not configured' },
         { status: 500 }
@@ -126,6 +134,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    const stripe = getStripe();
     const { searchParams } = new URL(request.url);
     const session_id = searchParams.get('session_id');
 
@@ -136,7 +145,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (!process.env.STRIPE_SECRET_KEY) {
+    if (!stripe || !process.env.STRIPE_SECRET_KEY) {
       return NextResponse.json(
         { error: 'Stripe not configured' },
         { status: 500 }

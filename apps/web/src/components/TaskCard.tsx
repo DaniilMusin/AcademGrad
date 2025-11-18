@@ -1,8 +1,8 @@
 import { memo, lazy, Suspense } from "react";
+import rehypeKatex from "rehype-katex";
+import remarkMath from "remark-math";
 
 const LazyMarkdown = lazy(() => import("react-markdown"));
-const LazyRehypeKatex = lazy(() => import("rehype-katex"));
-const LazyRemarkMath = lazy(() => import("remark-math"));
 
 interface Props {
   task: {
@@ -52,8 +52,8 @@ const TaskCard = memo(({ task }: Props) => {
       <Suspense fallback={<div className="animate-pulse bg-gray-200 h-32 rounded"></div>}>
         {hasMath ? (
           <LazyMarkdown
-            remarkPlugins={[LazyRemarkMath]}
-            rehypePlugins={[LazyRehypeKatex]}
+            remarkPlugins={[remarkMath as any]}
+            rehypePlugins={[rehypeKatex as any]}
             components={components}
           >
             {task.statement_md}
