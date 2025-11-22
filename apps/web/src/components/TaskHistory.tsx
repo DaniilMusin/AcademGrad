@@ -55,19 +55,10 @@ export default function TaskHistory({
 
   const supabase = createClient();
 
-  useEffect(() => {
-    // Debounce для фильтров
-    const timer = setTimeout(() => {
-      loadTaskHistory();
-    }, 300);
-    
-    return () => clearTimeout(timer);
-  }, [loadTaskHistory]);
-
   const loadTaskHistory = useCallback(async () => {
     try {
       setLoading(true);
-      
+
       let query = supabase
         .from('task_attempts')
         .select('*')
@@ -78,17 +69,17 @@ export default function TaskHistory({
       if (filters.topic) {
         query = query.ilike('topic_name', `%${filters.topic}%`);
       }
-      
+
       if (filters.difficulty) {
         query = query.eq('difficulty_level', parseInt(filters.difficulty));
       }
-      
+
       if (filters.correctness === 'correct') {
         query = query.eq('is_correct', true);
       } else if (filters.correctness === 'incorrect') {
         query = query.eq('is_correct', false);
       }
-      
+
       if (filters.dateRange !== 'all') {
         const daysAgo = new Date();
         daysAgo.setDate(daysAgo.getDate() - parseInt(filters.dateRange));
@@ -111,10 +102,11 @@ export default function TaskHistory({
   }, [filters, limit, supabase]);
 
   useEffect(() => {
+    // Debounce для фильтров
     const timer = setTimeout(() => {
       loadTaskHistory();
     }, 300);
-    
+
     return () => clearTimeout(timer);
   }, [loadTaskHistory]);
 
